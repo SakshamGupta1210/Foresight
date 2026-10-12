@@ -12,9 +12,14 @@ import json
 import uuid
 import re
 from typing import Dict, Any, Optional, List, Tuple
-from contextlib import contextmanager
+import os
 
-DB_PATH = "foresight.db"
+DB_PATH = os.environ.get("FORESIGHT_DB_PATH")
+if not DB_PATH:
+    if os.environ.get("VERCEL"):
+        DB_PATH = "/tmp/foresight.db"
+    else:
+        DB_PATH = "foresight.db"
 
 @contextmanager
 def get_db():
