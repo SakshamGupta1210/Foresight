@@ -246,6 +246,8 @@ Configuration is loaded from environment variables or `.env`:
 
 ```
 Foresight/
+├── api/
+│   └── index.py                 # Vercel serverless function entrypoint (FastAPI)
 ├── backend/
 │   ├── analyzer/
 │   │   ├── heuristics.py        # Deterministic threat indicators & typosquatting logic
@@ -278,6 +280,7 @@ Foresight/
 │   └── screenshots/             # Interface screenshots
 ├── .env.example                 # Template environment variables
 ├── .gitignore                   # Exclusions for virtual environments, secrets, databases
+├── vercel.json                  # Vercel serverless build and routing configuration
 ├── requirements.txt             # Python package dependencies
 ├── run.py                       # Server entry point
 ├── start_foresight.bat          # Windows launcher script
