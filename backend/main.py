@@ -355,10 +355,17 @@ async def get_system_stats():
 # MULTI-PAGE APPLICATION ROUTES & STATIC ASSETS
 # ---------------------------------------------------------------------
 
-frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
-pages_dir = os.path.join(frontend_dir, "pages")
+frontend_dir = os.environ.get("FORESIGHT_FRONTEND_DIR")
+if not frontend_dir or not os.path.isdir(frontend_dir):
+    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
+    if not os.path.isdir(frontend_dir):
+        candidate = os.path.abspath("frontend")
+        if os.path.isdir(candidate):
+            frontend_dir = candidate
 
-if os.path.isdir(frontend_dir):
+pages_dir = os.path.join(frontend_dir, "pages") if frontend_dir else ""
+
+if frontend_dir and os.path.isdir(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 @app.get("/", response_class=RedirectResponse)
