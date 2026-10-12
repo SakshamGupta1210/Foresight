@@ -14,11 +14,12 @@ import re
 from typing import Dict, Any, Optional, List, Tuple
 from contextlib import contextmanager
 import os
+import tempfile
 
 DB_PATH = os.environ.get("FORESIGHT_DB_PATH")
 if not DB_PATH:
     if os.environ.get("VERCEL"):
-        DB_PATH = "/tmp/foresight.db"
+        DB_PATH = os.path.join(tempfile.gettempdir(), "foresight.db")
     else:
         DB_PATH = "foresight.db"
 
