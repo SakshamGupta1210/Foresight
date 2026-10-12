@@ -138,6 +138,10 @@ def check_remote_status():
     return "ok"
 
 
+def log(msg):
+    print(msg, flush=True)
+
+
 def sync_cycle():
     """Executes a single check, stage, commit, and push cycle."""
     changed = get_changed_files_summary()
@@ -147,7 +151,7 @@ def sync_cycle():
     # Safety check: Ensure no database or private file was accidentally touched
     for _, filepath in changed:
         if filepath.endswith('.db') or filepath.startswith('.env') or 'foresight.db' in filepath:
-            print(f"[SECURITY WARNING] Skipping staging for sensitive/database file: {filepath}")
+            log(f"[SECURITY WARNING] Skipping staging for sensitive/database file: {filepath}")
             run_git(["reset", "HEAD", filepath])
 
     # Re-verify changes
@@ -155,48 +159,48 @@ def sync_cycle():
     if not changed:
         return False
 
-    print(f"\n[{datetime.now().strftime('%H:%M:%S')}] Detected {len(changed)} changed file(s). Staging...")
+    log(f"\n[{datetime.now().strftime('%H:%M:%S')}] Detected {len(changed)} changed file(s). Staging...")
     run_git(["add", "-A"])
 
     # Double check staged files
     code, staged_out, _ = run_git(["diff", "--staged", "--name-only"])
     if code != 0 or not staged_out:
-        print("[-] No staged changes to commit.")
+        log("[-] No staged changes to commit.")
         return False
 
     msg = generate_commit_message(changed)
-    print(f"[*] Creating commit: \"{msg}\"")
+    log(f"[*] Creating commit: \"{msg}\"")
     commit_code, _, commit_err = run_git(["commit", "-m", msg])
     if commit_code != 0:
-        print(f"[-] Commit failed: {commit_err}")
+        log(f"[-] Commit failed: {commit_err}")
         return False
 
-    print(f"[*] Pushing to {REMOTE}/{BRANCH}...")
+    log(f"[*] Pushing to {REMOTE}/{BRANCH}...")
     push_code, push_out, push_err = run_git(["push", REMOTE, BRANCH])
 
     if push_code == 0:
-        print(f"[+] Successfully pushed to GitHub ({REMOTE}/{BRANCH}) at {datetime.now().strftime('%H:%M:%S')}")
+        log(f"[+] Successfully pushed to GitHub ({REMOTE}/{BRANCH}) at {datetime.now().strftime('%H:%M:%S')}")
         return True
     else:
         # Check reasons
         if "Authentication failed" in push_err or "could not read Username" in push_err or "terminal prompts disabled" in push_err:
-            print(f"[!] Authentication required: Please run 'git push origin main' or 'gh auth login' once in your terminal to sign in.")
+            log(f"[!] Authentication required: Please run 'git push origin main' or 'gh auth login' once in your terminal to sign in.")
         elif "non-fast-forward" in push_err or "fetch first" in push_err:
-            print(f"[!] Remote has newer commits. Please pull or resolve remote changes before pushing.")
+            log(f"[!] Remote has newer commits. Please pull or resolve remote changes before pushing.")
         else:
-            print(f"[-] Push failed ({push_err}). Will retry on next file change or connection recovery.")
+            log(f"[-] Push failed ({push_err}). Will retry on next file change or connection recovery.")
         return False
 
 
 def main():
-    print("=" * 65)
-    print(" FORESIGHT — Automatic GitHub Synchronization Watcher")
-    print(f" Repository : {REPO_DIR}")
-    print(f" Target      : {REMOTE}/{BRANCH}")
-    print(f" Debounce    : {DEBOUNCE_SECONDS}s")
-    print("=" * 65)
-    print("[*] Watcher active. Monitoring project for saved changes...")
-    print("[*] Press Ctrl+C anytime to stop.\n")
+    log("=" * 65)
+    log(" FORESIGHT — Automatic GitHub Synchronization Watcher")
+    log(f" Repository : {REPO_DIR}")
+    log(f" Target      : {REMOTE}/{BRANCH}")
+    log(f" Debounce    : {DEBOUNCE_SECONDS}s")
+    log("=" * 65)
+    log("[*] Watcher active. Monitoring project for saved changes...")
+    log("[*] Press Ctrl+C anytime to stop.\n")
 
     last_snapshot = get_project_file_snapshot()
     pending_sync = False
@@ -212,7 +216,7 @@ def main():
                 last_snapshot = current_snapshot
                 pending_sync = True
                 last_change_time = time.time()
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] File modification detected. Waiting {DEBOUNCE_SECONDS}s for edits to settle...")
+                log(f"[{datetime.now().strftime('%H:%M:%S')}] File modification detected. Waiting {DEBOUNCE_SECONDS}s for edits to settle...")
 
             # If quiet period has elapsed after last change, trigger sync
             if pending_sync and (time.time() - last_change_time) >= DEBOUNCE_SECONDS:
@@ -220,10 +224,10 @@ def main():
                 sync_cycle()
 
         except KeyboardInterrupt:
-            print("\n[*] Automatic sync watcher stopped by user.")
+            log("\n[*] Automatic sync watcher stopped by user.")
             sys.exit(0)
         except Exception as e:
-            print(f"[!] Unexpected error in watcher loop: {e}")
+            log(f"[!] Unexpected error in watcher loop: {e}")
             time.sleep(5)
 
 
