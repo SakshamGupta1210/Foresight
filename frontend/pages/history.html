@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan History — FORESIGHT</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="/static/js/auth-guard.js?v=20260929_editorial"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/scan" class="brand-wrapper">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
+            <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
+            <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+            <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">FORESIGHT</span>
+          <span class="brand-tagline">“Know the risk before you take the step.”</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Links -->
+      <nav class="desktop-nav" id="desktop-nav-links">
+        <a href="/scan" class="nav-link">Scan</a>
+        <a href="/history" class="nav-link active">History</a>
+        <a href="/reports" class="nav-link">Reports</a>
+        <a href="/profile" class="nav-link">Profile</a>
+      </nav>
+
+      <!-- User Controls -->
+      <div class="header-auth-group">
+        <a href="/profile" class="user-profile-badge">
+          <span class="user-avatar-circle" id="user-avatar-initial">U</span>
+          <span id="header-user-name">Analyst</span>
+        </a>
+        <button class="btn-signout" onclick="handleLogout()">Logout</button>
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Toggle navigation">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- Editorial Lead Heading -->
+    <div class="page-lead-header">
+      <div>
+        <div class="page-kicker">Security Audit Ledger</div>
+        <h1 class="page-title">Personal Scan History</h1>
+        <p class="page-subtitle">
+          Historical record of decoded QR destinations and forensic evaluations associated with your account.
+        </p>
+      </div>
+      <a href="/scan" class="cyber-btn" style="padding: 0.55rem 1rem; font-size: 0.82rem;">
+        + Scan New Code
+      </a>
+    </div>
+
+    <!-- Filter & Search Toolbar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+      <div class="table-filter-pills" style="margin-bottom: 0;">
+        <button class="filter-pill active" onclick="setFilter('ALL', this)">All</button>
+        <button class="filter-pill" onclick="setFilter('SAFE', this)">Safe</button>
+        <button class="filter-pill" onclick="setFilter('SUSPICIOUS', this)">Suspicious</button>
+        <button class="filter-pill" onclick="setFilter('DANGEROUS', this)">Dangerous</button>
+      </div>
+
+      <div style="width: 260px;">
+        <input type="text" id="history-search" class="form-input" placeholder="Filter by domain or URL..." oninput="handleSearch(this.value)" style="padding: 0.45rem 0.75rem; font-size: 0.82rem;">
+      </div>
+    </div>
+
+    <!-- Editorial Table -->
+    <div class="editorial-table-wrap">
+      <table class="editorial-table">
+        <thead>
+          <tr>
+            <th style="width: 170px;">Date &amp; Time</th>
+            <th>Destination</th>
+            <th style="width: 110px; text-align: center;">Risk Score</th>
+            <th style="width: 130px; text-align: center;">Status</th>
+            <th style="width: 90px; text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody id="history-table-body">
+          <tr>
+            <td colspan="5" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+              Loading scan ledger...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State Box -->
+    <div id="empty-state-box" style="display: none; text-align: center; padding: 4rem 1.5rem; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); margin-top: 1rem;">
+      <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">No Scans Recorded</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">You haven't scanned any QR codes matching this filter yet.</p>
+      <a href="/scan" class="cyber-btn" style="padding: 0.55rem 1.2rem;">Go to Scanner</a>
+    </div>
+
+  </main>
+
+  <!-- Forensic Audit Detail Modal -->
+  <div class="modal-overlay" id="audit-modal" onclick="closeAuditModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem;">
+        <div>
+          <div class="page-kicker" id="modal-scan-id">SCAN AUDIT</div>
+          <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);" id="modal-scan-date">-</h2>
+        </div>
+        <button onclick="closeAuditModal()" style="background: none; border: none; font-size: 1.35rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+
+      <div style="margin-bottom: 1.25rem;">
+        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Destination URL</div>
+        <div id="modal-destination" style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-primary); word-break: break-all; background: var(--bg-surface-subtle); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          -
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="flex: 1; background: var(--bg-surface-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); text-align: center;">
+          <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Risk Score</div>
+          <div id="modal-score" style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.2rem;">-</div>
+        </div>
+        <div style="flex: 1; background: var(--bg-surface-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); text-align: center;">
+          <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Classification</div>
+          <div id="modal-status-badge" style="margin-top: 0.4rem;">-</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem;">Evaluated Threat Reasons</div>
+        <div id="modal-reasons-list" style="display: flex; flex-direction: column; gap: 0.45rem;">
+          <div style="font-size: 0.82rem; color: var(--text-muted);">No specific risk reasons recorded.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="cyber-btn secondary" onclick="closeAuditModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    requireAuth();
+
+    let currentFilter = 'ALL';
+    let currentSearch = '';
+    let loadedScans = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchScanHistory();
+    });
+
+    function setFilter(status, elem) {
+      currentFilter = status;
+      document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+      elem.classList.add('active');
+      fetchScanHistory();
+    }
+
+    let searchTimeout = null;
+    function handleSearch(val) {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        currentSearch = val.trim();
+        fetchScanHistory();
+      }, 250);
+    }
+
+    async function fetchScanHistory() {
+      const tbody = document.getElementById('history-table-body');
+      const emptyBox = document.getElementById('empty-state-box');
+      const token = getAuthToken();
+
+      try {
+        const url = `/api/user/scans?status=${encodeURIComponent(currentFilter)}&search=${encodeURIComponent(currentSearch)}`;
+        const resp = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || 'Could not retrieve scan history.');
+        }
+
+        loadedScans = data.scans || [];
+        tbody.innerHTML = '';
+
+        if (loadedScans.length === 0) {
+          emptyBox.style.display = 'block';
+          return;
+        }
+
+        emptyBox.style.display = 'none';
+
+        loadedScans.forEach(scan => {
+          const tr = document.createElement('tr');
+          const statusLower = (scan.risk_status || 'SAFE').toLowerCase();
+          
+          tr.innerHTML = `
+            <td style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap;">
+              ${formatDate(scan.created_at)}
+            </td>
+            <td>
+              <div style="font-weight: 600; color: var(--text-primary); font-size: 0.88rem;">${escapeHtml(scan.domain || 'Direct Destination')}</div>
+              <div style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-muted); max-width: 480px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(scan.final_url || scan.original_url || '')}
+              </div>
+            </td>
+            <td style="text-align: center; font-family: var(--font-mono); font-weight: 700; font-size: 0.95rem;">
+              ${scan.risk_score}
+            </td>
+            <td style="text-align: center;">
+              <span class="risk-badge ${statusLower}" style="padding: 0.2rem 0.65rem; font-size: 0.72rem;">
+                ${scan.risk_status || 'SAFE'}
+              </span>
+            </td>
+            <td style="text-align: right;">
+              <button class="cyber-btn secondary" onclick="openAuditModal('${scan.scan_id}')" style="padding: 0.28rem 0.65rem; font-size: 0.75rem;">
+                View
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--risk-dangerous-text);">${err.message}</td></tr>`;
+      }
+    }
+
+    function openAuditModal(scanId) {
+      const scan = loadedScans.find(s => s.scan_id === scanId);
+      if (!scan) return;
+
+      document.getElementById('modal-scan-id').textContent = `AUDIT REPORT \u2022 ${scan.scan_id}`;
+      document.getElementById('modal-scan-date').textContent = formatDate(scan.created_at);
+      document.getElementById('modal-destination').textContent = scan.final_url || scan.original_url || '-';
+      document.getElementById('modal-score').textContent = scan.risk_score;
+
+      const statusLower = (scan.risk_status || 'SAFE').toLowerCase();
+      document.getElementById('modal-status-badge').innerHTML = `<span class="risk-badge ${statusLower}">${scan.risk_status}</span>`;
+
+      const reasonsContainer = document.getElementById('modal-reasons-list');
+      reasonsContainer.innerHTML = '';
+      const reasons = scan.reasons || [];
+      if (reasons.length === 0) {
+        reasonsContainer.innerHTML = '<div style="font-size: 0.82rem; color: var(--text-muted); padding: 0.5rem; background: var(--bg-surface-subtle); border-radius: var(--radius-sm);">Clean evaluation. No structural anomalies detected.</div>';
+      } else {
+        reasons.forEach(r => {
+          const item = document.createElement('div');
+          item.style.fontSize = '0.82rem';
+          item.style.padding = '0.45rem 0.75rem';
+          item.style.borderRadius = 'var(--radius-sm)';
+          item.style.background = statusLower === 'dangerous' ? 'var(--risk-dangerous-bg)' : 'var(--risk-suspicious-bg)';
+          item.style.color = statusLower === 'dangerous' ? 'var(--risk-dangerous-text)' : 'var(--risk-suspicious-text)';
+          item.textContent = `• ${r}`;
+          reasonsContainer.appendChild(item);
+        });
+      }
+
+      document.getElementById('audit-modal').style.display = 'flex';
+    }
+
+    function closeAuditModal(e) {
+      if (!e || e.target.id === 'audit-modal' || !e.target.closest('.modal-content')) {
+        document.getElementById('audit-modal').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Security Incident Reports — FORESIGHT</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="/static/js/auth-guard.js?v=20260929_editorial"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/scan" class="brand-wrapper">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
+            <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
+            <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+            <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">FORESIGHT</span>
+          <span class="brand-tagline">“Know the risk before you take the step.”</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Links -->
+      <nav class="desktop-nav" id="desktop-nav-links">
+        <a href="/scan" class="nav-link">Scan</a>
+        <a href="/history" class="nav-link">History</a>
+        <a href="/reports" class="nav-link active">Reports</a>
+        <a href="/profile" class="nav-link">Profile</a>
+      </nav>
+
+      <!-- User Controls -->
+      <div class="header-auth-group">
+        <a href="/profile" class="user-profile-badge">
+          <span class="user-avatar-circle" id="user-avatar-initial">U</span>
+          <span id="header-user-name">Analyst</span>
+        </a>
+        <button class="btn-signout" onclick="handleLogout()">Logout</button>
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Toggle navigation">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- Security Header -->
+    <div class="page-lead-header">
+      <div>
+        <div class="page-kicker">QR SECURITY REPORTS</div>
+        <h1 class="page-title">QR Security Incident Reports</h1>
+        <p class="page-subtitle">
+          Automatically generated reports for QR destinations that reach 100+ unique accesses within a rolling 24-hour period.
+        </p>
+      </div>
+      <div style="font-family: var(--font-mono); font-size: 0.78rem; background: var(--bg-surface); border: 1px solid var(--border-default); padding: 0.45rem 0.85rem; border-radius: var(--radius-sm); color: var(--text-secondary);">
+        THRESHOLD: 100+ UNIQUE ACCESSES / 24H
+      </div>
+    </div>
+
+    <!-- Editorial Table of Reports -->
+    <div class="editorial-table-wrap">
+      <table class="editorial-table">
+        <thead>
+          <tr>
+            <th style="width: 140px;">Incident ID</th>
+            <th style="width: 170px;">Trigger Timestamp</th>
+            <th>Target Destination / Domain</th>
+            <th style="width: 130px; text-align: center;">24h Accesses</th>
+            <th style="width: 130px; text-align: center;">Status</th>
+            <th style="width: 120px; text-align: right;">Report</th>
+          </tr>
+        </thead>
+        <tbody id="incidents-table-body">
+          <tr>
+            <td colspan="6" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+              Loading incident reports...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty State -->
+    <div id="no-incidents-box" style="display: none; text-align: center; padding: 4rem 1.5rem; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); margin-top: 1rem;">
+      <h3 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.35rem;">No Incident Reports</h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); max-width: 540px; margin: 0 auto;">
+        Reports generated when a QR destination reaches the defined 100+ unique-access threshold within 24 hours.
+      </p>
+    </div>
+
+  </main>
+
+  <!-- Report Detail Modal -->
+  <div class="modal-overlay" id="report-modal" onclick="closeReportModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 1rem;">
+        <div>
+          <div class="page-kicker" id="report-id">INCIDENT REPORT</div>
+          <h2 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary);" id="report-domain">-</h2>
+        </div>
+        <button onclick="closeReportModal()" style="background: none; border: none; font-size: 1.35rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+
+      <div style="margin-bottom: 1.25rem;">
+        <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.25rem;">Destination URL</div>
+        <div id="report-url" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--text-primary); word-break: break-all; background: var(--bg-surface-subtle); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          -
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--bg-surface-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">24-Hour Unique Accesses</div>
+          <div id="report-count" style="font-size: 1.5rem; font-weight: 800; font-family: var(--font-mono); color: var(--risk-dangerous-text); margin-top: 0.25rem;">0</div>
+        </div>
+        <div style="background: var(--bg-surface-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Threat Status</div>
+          <div id="report-status" style="margin-top: 0.35rem;">-</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 1.5rem;">
+        <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem;">Incident Trigger Analysis</div>
+        <div id="report-summary" style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5; background: var(--bg-surface-subtle); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
+          -
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button class="cyber-btn secondary" onclick="closeReportModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    requireAuth();
+
+    let loadedIncidents = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchIncidents();
+    });
+
+    async function fetchIncidents() {
+      const tbody = document.getElementById('incidents-table-body');
+      const emptyBox = document.getElementById('no-incidents-box');
+
+      try {
+        const resp = await fetch('/api/incidents');
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || 'Could not load incident reports.');
+        }
+
+        loadedIncidents = data.incidents || [];
+        tbody.innerHTML = '';
+
+        if (loadedIncidents.length === 0) {
+          emptyBox.style.display = 'block';
+          return;
+        }
+
+        emptyBox.style.display = 'none';
+
+        loadedIncidents.forEach(inc => {
+          const tr = document.createElement('tr');
+          const isDanger = (inc.risk_status || '').toUpperCase() === 'DANGEROUS';
+
+          tr.innerHTML = `
+            <td style="font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; color: var(--text-secondary);">
+              ${inc.id || inc.incident_id || 'INC-001'}
+            </td>
+            <td style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap;">
+              ${formatDate(inc.triggered_at || inc.created_at)}
+            </td>
+            <td>
+              <div style="font-weight: 600; color: var(--text-primary); font-size: 0.88rem;">${escapeHtml(inc.domain || 'Target Endpoint')}</div>
+              <div style="font-family: var(--font-mono); font-size: 0.76rem; color: var(--text-muted); max-width: 440px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(inc.final_url || inc.original_url || '')}
+              </div>
+            </td>
+            <td style="text-align: center; font-family: var(--font-mono); font-weight: 700; color: var(--risk-dangerous-text);">
+              ${inc.unique_access_count || inc.access_count || '100+'}
+            </td>
+            <td style="text-align: center;">
+              <span class="risk-badge ${isDanger ? 'dangerous' : 'suspicious'}" style="padding: 0.2rem 0.65rem; font-size: 0.72rem;">
+                ${inc.risk_status || 'FLAGGED'}
+              </span>
+            </td>
+            <td style="text-align: right;">
+              <button class="cyber-btn secondary" onclick="openReport('${inc.id || inc.incident_id}')" style="padding: 0.28rem 0.65rem; font-size: 0.75rem;">
+                View Report
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--risk-dangerous-text);">${err.message}</td></tr>`;
+      }
+    }
+
+    function openReport(incId) {
+      const inc = loadedIncidents.find(i => (i.id === incId || i.incident_id === incId));
+      if (!inc) return;
+
+      document.getElementById('report-id').textContent = `INCIDENT REPORT \u2022 ${inc.id || inc.incident_id}`;
+      document.getElementById('report-domain').textContent = inc.domain || 'Incident Report';
+      document.getElementById('report-url').textContent = inc.final_url || inc.original_url || '-';
+      document.getElementById('report-count').textContent = inc.unique_access_count || inc.access_count || '100+';
+
+      const isDanger = (inc.risk_status || '').toUpperCase() === 'DANGEROUS';
+      document.getElementById('report-status').innerHTML = `<span class="risk-badge ${isDanger ? 'dangerous' : 'suspicious'}">${inc.risk_status || 'FLAGGED'}</span>`;
+
+      document.getElementById('report-summary').textContent =
+        inc.incident_summary ||
+        `High-volume QR distribution event. Exceeded the 100+ unique access threshold within 24 hours with classified threat indicators. Structured incident report generated for cybercell review.`;
+
+      document.getElementById('report-modal').style.display = 'flex';
+    }
+
+    function closeReportModal(e) {
+      if (!e || e.target.id === 'report-modal' || !e.target.closest('.modal-content')) {
+        document.getElementById('report-modal').style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

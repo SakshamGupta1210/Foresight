@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis Result — FORESIGHT</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="/static/js/auth-guard.js?v=20260929_editorial"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/scan" class="brand-wrapper">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
+            <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
+            <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+            <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">FORESIGHT</span>
+          <span class="brand-tagline">“Know the risk before you take the step.”</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Links -->
+      <nav class="desktop-nav" id="desktop-nav-links">
+        <a href="/scan" class="nav-link">Scan</a>
+        <a href="/history" class="nav-link">History</a>
+        <a href="/reports" class="nav-link">Reports</a>
+        <a href="/profile" class="nav-link">Profile</a>
+      </nav>
+
+      <!-- User Controls -->
+      <div class="header-auth-group">
+        <a href="/profile" class="user-profile-badge">
+          <span class="user-avatar-circle" id="user-avatar-initial">U</span>
+          <span id="header-user-name">Analyst</span>
+        </a>
+        <button class="btn-signout" onclick="handleLogout()">Logout</button>
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Toggle navigation">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Analysis Result Container -->
+  <main class="main-container">
+    
+    <!-- Top Action Breadcrumb Bar -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <a href="/scan" style="display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; font-weight: 500;">
+        &larr; Scan another QR code
+      </a>
+      <div id="scan-reference-tag" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: var(--bg-surface-subtle); padding: 0.25rem 0.65rem; border-radius: var(--radius-xs); border: 1px solid var(--border-subtle);">
+        REF: SCN-LOADING
+      </div>
+    </div>
+
+    <!-- Visually Dominant Risk Score & Status Banner -->
+    <section class="result-headline-banner" id="headline-banner">
+      <div class="result-verdict-group">
+        <div class="risk-score-dial" id="risk-score-dial">
+          <span class="risk-score-value" id="risk-score-num">--</span>
+          <span class="risk-score-label">Risk Index</span>
+        </div>
+        <div>
+          <div style="margin-bottom: 0.35rem;">
+            <span class="risk-badge" id="risk-status-badge">EVALUATING</span>
+          </div>
+          <h1 id="risk-verdict-title" style="font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.25rem;">
+            Evaluating Destination Security...
+          </h1>
+          <p id="risk-recommendation-text" style="font-size: 0.88rem; color: var(--text-secondary); max-width: 580px;">
+            Analyzing hostname reputation, redirect trail, and deceptive heuristic indicators.
+          </p>
+        </div>
+      </div>
+
+      <!-- Immediate Action Decisions -->
+      <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <button class="cyber-btn danger" onclick="handleAvoidAction()">
+          Avoid &amp; Discard
+        </button>
+        <button class="cyber-btn secondary" id="btn-proceed" onclick="handleProceedAction()">
+          Proceed to URL &rarr;
+        </button>
+      </div>
+    </section>
+
+    <!-- Unified Forensic Details Container (Cohesive, not fragmented floating cards) -->
+    <div class="cyber-card" style="padding: 2rem;">
+      
+      <!-- Primary Destination Inspection -->
+      <div style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="page-kicker" style="margin-bottom: 0.35rem;">Destination Payload</div>
+        <div id="display-final-url" style="font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; color: var(--text-primary); word-break: break-all; margin-bottom: 0.75rem;">
+          Loading destination...
+        </div>
+        <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary);">
+          <div><strong>Domain:</strong> <span id="meta-domain" style="font-family: var(--font-mono); color: var(--text-primary);">-</span></div>
+          <div><strong>Protocol:</strong> <span id="meta-scheme" style="font-family: var(--font-mono); color: var(--text-primary);">-</span></div>
+          <div><strong>IP Address:</strong> <span id="meta-ip" style="font-family: var(--font-mono); color: var(--text-primary);">-</span></div>
+        </div>
+      </div>
+
+      <!-- Grid: Specific Findings & Redirect Trail -->
+      <div class="result-grid-layout">
+        
+        <!-- Left: Threat Findings & Indicators -->
+        <div>
+          <h2 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.85rem;">
+            Risk Evaluation Factors
+          </h2>
+          <div id="reasons-list" style="display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.5rem;">
+            <div style="font-size: 0.85rem; color: var(--text-muted);">No critical threats identified.</div>
+          </div>
+
+          <h2 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.85rem;">
+            Structural Security Checks
+          </h2>
+          <div class="result-detail-list" id="heuristics-detail-list">
+            <div class="detail-row">
+              <span class="detail-label">Brand Spoofing / Typosquatting</span>
+              <span class="detail-value" id="heur-typo">Checking...</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Punycode / Homograph Attack</span>
+              <span class="detail-value" id="heur-punycode">Checking...</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">TLD Reputation Risk</span>
+              <span class="detail-value" id="heur-tld">Checking...</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Dangerous File Extension</span>
+              <span class="detail-value" id="heur-extension">Checking...</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Multi-Hop Redirect Trace -->
+        <div style="border-left: 1px solid var(--border-subtle); padding-left: 1.5rem;">
+          <h2 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.85rem;">
+            Redirect Trace Hops
+          </h2>
+          <div id="redirect-hops-container">
+            <div style="font-size: 0.82rem; color: var(--text-muted);">Direct connection (0 intermediate hops).</div>
+          </div>
+
+          <div style="margin-top: 1.5rem; background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.85rem;">
+            <div style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-green); margin-bottom: 0.25rem;">
+              Destination Advice
+            </div>
+            <p id="safety-tip-text" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.45;">
+              Always verify the domain name matches the expected organization before entering credentials or downloading files.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    requireAuth();
+
+    let currentAnalysis = null;
+    let currentFinalUrl = '';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadAnalysisData();
+    });
+
+    async function loadAnalysisData() {
+      const pathParts = window.location.pathname.split('/result/');
+      const scanId = pathParts.length > 1 ? pathParts[1] : '';
+
+      document.getElementById('scan-reference-tag').textContent = `REF: ${scanId || 'LIVE'}`;
+
+      // Check localStorage cache first for instant render
+      const cached = localStorage.getItem('foresight_last_analysis');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (!scanId || parsed.scan_id === scanId) {
+            currentAnalysis = parsed.analysis;
+            renderAnalysis(parsed.analysis, scanId);
+            return;
+          }
+        } catch (e) {
+          console.warn('Cache parse error:', e);
+        }
+      }
+
+      // Fetch from API if not cached or specific ID requested
+      if (scanId) {
+        try {
+          const token = getAuthToken();
+          const resp = await fetch(`/api/user/scans/${scanId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const scan = data.scan;
+            const syntheticAnalysis = {
+              score: scan.risk_score,
+              status: scan.risk_status,
+              original_url: scan.original_url,
+              final_url: scan.final_url,
+              domain: scan.domain,
+              reasons: scan.reasons || [],
+              redirects: scan.redirect_chain || [],
+              heuristics: scan.heuristics || {}
+            };
+            currentAnalysis = syntheticAnalysis;
+            renderAnalysis(syntheticAnalysis, scanId);
+            return;
+          }
+        } catch (e) {
+          console.warn('Failed to load past scan:', e);
+        }
+      }
+
+      // Fallback message
+      document.getElementById('risk-verdict-title').textContent = 'Scan Record Not Available';
+      document.getElementById('risk-recommendation-text').textContent = 'Please return to the scanner and submit a destination to analyze.';
+    }
+
+    function renderAnalysis(analysis, scanId) {
+      const score = analysis.score !== undefined ? analysis.score : (analysis.risk_score || 0);
+      const status = (analysis.status || analysis.risk_status || 'SAFE').toUpperCase();
+      currentFinalUrl = analysis.final_url || analysis.original_url || '';
+
+      // Score and Badge
+      document.getElementById('risk-score-num').textContent = score;
+      const badge = document.getElementById('risk-status-badge');
+      badge.textContent = status;
+      badge.className = `risk-badge ${status.toLowerCase()}`;
+
+      // Border & Dial tone
+      const dial = document.getElementById('risk-score-dial');
+      if (status === 'SAFE') {
+        dial.style.borderColor = 'var(--risk-safe-border)';
+        document.getElementById('risk-score-num').style.color = 'var(--risk-safe-text)';
+      } else if (status === 'SUSPICIOUS') {
+        dial.style.borderColor = 'var(--risk-suspicious-border)';
+        document.getElementById('risk-score-num').style.color = 'var(--risk-suspicious-text)';
+      } else {
+        dial.style.borderColor = 'var(--risk-dangerous-border)';
+        document.getElementById('risk-score-num').style.color = 'var(--risk-dangerous-text)';
+      }
+
+      document.getElementById('risk-verdict-title').textContent =
+        status === 'SAFE' ? 'Verified Destination: Minimal Risk' :
+        status === 'SUSPICIOUS' ? 'Caution Recommended: Suspicious Signals' :
+        'High Risk Alert: Known Threats or Deceptive Destination';
+
+      document.getElementById('risk-recommendation-text').textContent =
+        analysis.recommendation || (
+          status === 'SAFE' ? 'No major risk markers identified. The URL destination appears legitimate.' :
+          status === 'SUSPICIOUS' ? 'Proceed with care. Do not enter credentials without verifying identity.' :
+          'Avoid visiting this destination. The link exhibits deceptive traits or severe threat indicators.'
+        );
+
+      // URLs and Meta
+      document.getElementById('display-final-url').textContent = currentFinalUrl || 'No destination extracted';
+      document.getElementById('meta-domain').textContent = analysis.domain || analysis.hostname || '-';
+      document.getElementById('meta-scheme').textContent = (analysis.scheme || (currentFinalUrl.startsWith('https') ? 'https' : 'http')).toUpperCase();
+      document.getElementById('meta-ip').textContent = analysis.heuristics?.resolved_ip || 'Resolved via DNS';
+
+      // Reasons list
+      const reasonsList = document.getElementById('reasons-list');
+      reasonsList.innerHTML = '';
+      const reasons = analysis.reasons || [];
+      if (reasons.length === 0) {
+        reasonsList.innerHTML = '<div style="font-size: 0.85rem; color: var(--text-muted); background: var(--bg-surface-subtle); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">No anomalies detected during destination analysis.</div>';
+      } else {
+        reasons.forEach(r => {
+          const item = document.createElement('div');
+          item.style.padding = '0.55rem 0.85rem';
+          item.style.borderRadius = 'var(--radius-sm)';
+          item.style.fontSize = '0.84rem';
+          item.style.background = status === 'DANGEROUS' ? 'var(--risk-dangerous-bg)' : 'var(--risk-suspicious-bg)';
+          item.style.border = `1px solid ${status === 'DANGEROUS' ? 'var(--risk-dangerous-border)' : 'var(--risk-suspicious-border)'}`;
+          item.style.color = status === 'DANGEROUS' ? 'var(--risk-dangerous-text)' : 'var(--risk-suspicious-text)';
+          item.textContent = `• ${r}`;
+          reasonsList.appendChild(item);
+        });
+      }
+
+      // Heuristics
+      const h = analysis.heuristics || {};
+      document.getElementById('heur-typo').textContent = h.typosquatting_detected ? `Flagged (${h.similar_to_brand || 'Brand Spoof'})` : 'Clean';
+      document.getElementById('heur-punycode').textContent = h.punycode_detected ? 'Detected (Homograph)' : 'Standard ASCII';
+      document.getElementById('heur-tld').textContent = h.high_risk_tld ? 'High Risk TLD' : 'Standard TLD';
+      document.getElementById('heur-extension').textContent = h.suspicious_file_extension ? 'Executable / Script (.apk, .exe, .sh)' : 'None';
+
+      // Redirects
+      const redContainer = document.getElementById('redirect-hops-container');
+      redContainer.innerHTML = '';
+      const redirects = analysis.redirects || [];
+      if (redirects.length === 0) {
+        redContainer.innerHTML = '<div style="font-size: 0.82rem; color: var(--text-muted);">Direct connection with no intermediary hops.</div>';
+      } else {
+        redirects.forEach((hop, idx) => {
+          const hopCard = document.createElement('div');
+          hopCard.className = 'redirect-step-card';
+          hopCard.innerHTML = `<span class="redirect-step-badge">HOP ${idx + 1}</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(hop)}</span>`;
+          redContainer.appendChild(hopCard);
+        });
+      }
+    }
+
+    function handleAvoidAction() {
+      window.location.href = '/scan';
+    }
+
+    function handleProceedAction() {
+      if (!currentFinalUrl) return;
+      if (confirm(`You are navigating to: \n${currentFinalUrl}\n\nDo you want to proceed in a new tab?`)) {
+        window.open(currentFinalUrl, '_blank', 'noopener,noreferrer');
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>

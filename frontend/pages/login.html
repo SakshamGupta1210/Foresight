@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — FORESIGHT</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="/static/js/auth-guard.js?v=20260929_editorial"></script>
+</head>
+<body>
+
+  <div class="auth-editorial-container">
+    <!-- Left Column: Editorial Brand Presence -->
+    <aside class="auth-editorial-aside">
+      <div>
+        <a href="/login" class="auth-editorial-brandmark">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
+              <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
+              <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+              <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <span class="brand-title">FORESIGHT</span>
+            <span class="brand-tagline">“Know the risk before you take the step.”</span>
+          </div>
+        </a>
+
+        <h1 class="auth-editorial-quote">
+          Deterministic QR security analysis and destination forensics.
+        </h1>
+        <p class="auth-editorial-desc">
+          Evaluate redirection hops, typosquatting domains, and structural security indicators before loading destination URLs.
+        </p>
+
+        <ul class="auth-feature-list">
+          <li class="auth-feature-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Real-time camera & image decoding without hardcoded sample limits</span>
+          </li>
+          <li class="auth-feature-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Multi-hop HTTP redirect tracing revealing cloaked endpoints</span>
+          </li>
+          <li class="auth-feature-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Isolated audit history secured with PBKDF2 authentication</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="auth-editorial-footer-note">
+        FORESIGHT CYBERSECURITY PLATFORM &bull; VERSION 2.2
+      </div>
+    </aside>
+
+    <!-- Right Column: Clean Form -->
+    <main class="auth-form-wrap">
+      <div class="auth-card">
+        <h2 class="auth-card-title">Sign In</h2>
+        <p class="auth-card-desc">Enter your credentials to access the destination analysis workspace.</p>
+
+        <div class="form-error-alert" id="login-error-alert"></div>
+
+        <form id="login-form" onsubmit="handleLogin(event)">
+          <div class="form-group">
+            <label class="form-label" for="login-email">Email or Username</label>
+            <input class="form-input" type="text" id="login-email" placeholder="officer@domain.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="login-password">Password</label>
+            <div class="form-input-wrap">
+              <input class="form-input" type="password" id="login-password" placeholder="Enter your password" required autocomplete="current-password">
+              <button type="button" class="input-toggle-btn" onclick="togglePasswordVisibility('login-password')" aria-label="Toggle password visibility">👁</button>
+            </div>
+          </div>
+
+          <button type="submit" class="cyber-btn" id="btn-login" style="width: 100%; margin-top: 0.5rem;">
+            Sign In &rarr;
+          </button>
+        </form>
+
+        <div class="auth-card-footer">
+          Need an account? <a href="/signup">Register here</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    redirectIfLoggedIn();
+
+    function togglePasswordVisibility(id) {
+      const input = document.getElementById(id);
+      if (input) input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('login-error-alert');
+      const btn = document.getElementById('btn-login');
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      errBox.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Authenticating...';
+
+      try {
+        const resp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || data.message || 'Login failed. Verify credentials.');
+        }
+
+        setAuthToken(data.token);
+        window.location.href = '/scan';
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Sign In →';
+      }
+    }
+  </script>
+</body>
+</html>

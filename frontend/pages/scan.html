@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scan Destination — FORESIGHT</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="/static/js/jsQR.js"></script>
+  <script src="/static/js/auth-guard.js?v=20260929_editorial"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="/scan" class="brand-wrapper">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
+            <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
+            <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+            <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <span class="brand-title">FORESIGHT</span>
+          <span class="brand-tagline">“Know the risk before you take the step.”</span>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Links -->
+      <nav class="desktop-nav" id="desktop-nav-links">
+        <a href="/scan" class="nav-link active">Scan</a>
+        <a href="/history" class="nav-link">History</a>
+        <a href="/reports" class="nav-link">Reports</a>
+        <a href="/profile" class="nav-link">Profile</a>
+      </nav>
+
+      <!-- User Controls -->
+      <div class="header-auth-group">
+        <a href="/profile" class="user-profile-badge">
+          <span class="user-avatar-circle" id="user-avatar-initial">U</span>
+          <span id="header-user-name">Analyst</span>
+        </a>
+        <button class="btn-signout" onclick="handleLogout()">Logout</button>
+        <button class="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Toggle navigation">☰</button>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer Menu -->
+    <div class="mobile-nav-drawer" id="mobile-nav-drawer">
+      <a href="/scan" class="nav-link active">Scan</a>
+      <a href="/history" class="nav-link">History</a>
+      <a href="/reports" class="nav-link">Reports</a>
+      <a href="/profile" class="nav-link">Profile</a>
+      <a onclick="handleLogout()" class="nav-link" style="color: var(--risk-dangerous-text); cursor: pointer;">Logout</a>
+    </div>
+  </header>
+
+  <!-- Main Focus Container -->
+  <main class="main-container" style="max-width: 820px;">
+    
+    <!-- Editorial Lead Heading -->
+    <div class="page-lead-header" style="text-align: center; display: block; border-bottom: none; margin-bottom: 1.75rem; padding-bottom: 0;">
+      <div class="page-kicker">QR Destination Verification</div>
+      <h1 class="page-title" style="font-size: 2.2rem; margin-bottom: 0.5rem;">Scan & Inspect Destination</h1>
+      <p class="page-subtitle" style="margin: 0 auto; max-width: 580px;">
+        Examine raw payloads, follow multi-hop redirection chains, and uncover deceptive domains before your device connects.
+      </p>
+    </div>
+
+    <!-- Mode Selector Tabs -->
+    <div class="mode-buttons-bar" style="justify-content: center; margin-bottom: 1.75rem;">
+      <button class="cyber-btn" id="btn-mode-camera" onclick="switchScanMode('camera')">
+        Camera Scanner
+      </button>
+      <button class="cyber-btn secondary" id="btn-mode-upload" onclick="switchScanMode('upload')">
+        Upload Image
+      </button>
+      <button class="cyber-btn secondary" id="btn-mode-manual" onclick="switchScanMode('manual')">
+        Direct URL Input
+      </button>
+    </div>
+
+    <!-- Scanning Workspace Box -->
+    <div class="cyber-card" style="padding: 2.25rem;">
+      
+      <!-- 1. Live Camera Scanner Viewport -->
+      <div id="camera-section">
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+            Optical Lens Viewfinder
+          </h2>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">
+            Point camera directly at any valid QR code to decode dynamically in real time
+          </p>
+        </div>
+
+        <div class="scanner-viewport-box" style="height: 380px;">
+          <video id="video-preview" playsinline></video>
+          <canvas id="qr-canvas" style="display: none;"></canvas>
+          <div class="scanner-overlay" id="scanner-overlay">
+            <div class="scan-line"></div>
+          </div>
+          <div id="camera-controls" style="position: absolute; bottom: 20px; z-index: 10;">
+            <button class="cyber-btn" id="btn-cam-toggle" onclick="toggleCamera()" style="background: rgba(255, 255, 255, 0.92); color: #18191c; border: 1px solid rgba(0,0,0,0.15); box-shadow: var(--shadow-card);">
+              Start Camera
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Image File Upload Dropzone -->
+      <div id="upload-section" style="display: none;">
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+            Upload Image File
+          </h2>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">
+            Supports PNG, JPEG, and WEBP formats with server-side computer vision decoding
+          </p>
+        </div>
+
+        <div class="dropzone-box" style="min-height: 280px;" onclick="triggerFileInput()">
+          <input type="file" id="qr-file-input" accept="image/*" style="display: none;" onchange="handleFileSelected(event)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <div style="font-weight: 600; font-size: 1rem; color: var(--text-primary); margin-bottom: 0.25rem;">
+            Click to browse or drop QR image here
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">
+            No sample limits &bull; Full resolution pixel analysis
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Direct URL Input -->
+      <div id="manual-section" style="display: none;">
+        <div style="text-align: center; margin-bottom: 1.25rem;">
+          <h2 style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+            Direct URL Inspection
+          </h2>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">
+            Enter or paste any destination link to trace redirects and run forensic checks
+          </p>
+        </div>
+
+        <textarea id="manual-input-box" class="cyber-textarea" placeholder="https://example.com/login" style="min-height: 120px; font-size: 0.9rem; padding: 0.85rem;"></textarea>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+          <button class="cyber-btn" onclick="submitManualUrl()">
+            Analyze Destination &rarr;
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Active Analysis Loading Indicator -->
+    <div id="scan-loading-card" class="cyber-card" style="display: none; text-align: center; padding: 3rem 1.5rem; margin-top: 1.5rem;">
+      <div style="display: inline-block; width: 36px; height: 36px; border: 3px solid var(--border-default); border-top-color: var(--accent-green); border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 1rem;"></div>
+      <h3 id="loading-title" style="font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem;">
+        Tracing Destination...
+      </h3>
+      <p style="font-size: 0.84rem; color: var(--text-muted);">
+        Resolving HTTP redirect hops, evaluating typosquatting similarity, and computing risk score.
+      </p>
+    </div>
+    <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+
+  </main>
+
+  <script>
+    requireAuth();
+
+    let videoStream = null;
+    let scanInterval = null;
+
+    function switchScanMode(mode) {
+      document.getElementById('camera-section').style.display = mode === 'camera' ? 'block' : 'none';
+      document.getElementById('upload-section').style.display = mode === 'upload' ? 'block' : 'none';
+      document.getElementById('manual-section').style.display = mode === 'manual' ? 'block' : 'none';
+
+      const btnCam = document.getElementById('btn-mode-camera');
+      const btnUp = document.getElementById('btn-mode-upload');
+      const btnMan = document.getElementById('btn-mode-manual');
+
+      [btnCam, btnUp, btnMan].forEach(b => {
+        b.className = 'cyber-btn secondary';
+      });
+
+      if (mode === 'camera') btnCam.className = 'cyber-btn';
+      if (mode === 'upload') btnUp.className = 'cyber-btn';
+      if (mode === 'manual') btnMan.className = 'cyber-btn';
+
+      if (mode !== 'camera' && videoStream) {
+        stopCamera();
+      }
+    }
+
+    async function toggleCamera() {
+      if (videoStream) {
+        stopCamera();
+      } else {
+        await startCamera();
+      }
+    }
+
+    async function startCamera() {
+      const btn = document.getElementById('btn-cam-toggle');
+      const video = document.getElementById('video-preview');
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }
+        });
+        video.srcObject = videoStream;
+        video.setAttribute('playsinline', true);
+        await video.play();
+        btn.textContent = 'Stop Camera';
+        startScanningLoop();
+      } catch (err) {
+        alert('Could not access camera: ' + err.message);
+      }
+    }
+
+    function stopCamera() {
+      if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+      }
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+      }
+      const btn = document.getElementById('btn-cam-toggle');
+      if (btn) btn.textContent = 'Start Camera';
+    }
+
+    function startScanningLoop() {
+      const video = document.getElementById('video-preview');
+      const canvas = document.getElementById('qr-canvas');
+      const ctx = canvas.getContext('2d');
+
+      scanInterval = setInterval(() => {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.height = video.videoHeight;
+          canvas.width = video.videoWidth;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: 'dontInvert'
+          });
+
+          if (code && code.data) {
+            stopCamera();
+            analyzeAndRedirect(code.data);
+          }
+        }
+      }, 250);
+    }
+
+    function triggerFileInput() {
+      document.getElementById('qr-file-input').click();
+    }
+
+    async function handleFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      showLoading(true, 'Decoding Image...');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const token = getAuthToken();
+        const resp = await fetch('/api/scan-image', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || data.message || 'Failed to decode QR image.');
+        }
+
+        const scanId = data.saved_scan?.scan_id || ('SCN-' + Math.random().toString(16).substring(2, 10).toUpperCase());
+        localStorage.setItem('foresight_last_analysis', JSON.stringify({
+          scan_id: scanId,
+          analysis: data.analysis,
+          saved_scan: data.saved_scan
+        }));
+        window.location.href = `/result/${scanId}`;
+      } catch (err) {
+        showLoading(false);
+        alert(err.message);
+      }
+    }
+
+    async function submitManualUrl() {
+      const input = document.getElementById('manual-input-box').value.trim();
+      if (!input) {
+        alert('Please enter a destination URL to inspect.');
+        return;
+      }
+      analyzeAndRedirect(input);
+    }
+
+    async function analyzeAndRedirect(payload) {
+      showLoading(true, 'Evaluating Destination Security...');
+      try {
+        const token = getAuthToken();
+        const resp = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ payload: payload, action_taken: 'INSPECTED' })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || 'Analysis failed.');
+        }
+
+        const scanId = data.saved_scan?.scan_id || ('SCN-' + Math.random().toString(16).substring(2, 10).toUpperCase());
+        localStorage.setItem('foresight_last_analysis', JSON.stringify({
+          scan_id: scanId,
+          analysis: data.analysis,
+          saved_scan: data.saved_scan
+        }));
+        window.location.href = `/result/${scanId}`;
+      } catch (err) {
+        showLoading(false);
+        alert(err.message);
+      }
+    }
+
+    function showLoading(show, message) {
+      const card = document.getElementById('scan-loading-card');
+      const title = document.getElementById('loading-title');
+      if (title && message) title.textContent = message;
+      if (card) card.style.display = show ? 'block' : 'none';
+    }
+
+    window.addEventListener('beforeunload', () => {
+      stopCamera();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — FORESIGHT</title>
+  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="/static/js/auth-guard.js?v=20260929_editorial"></script>
+</head>
+<body>
+
+  <div class="auth-editorial-container">
+    <!-- Left Column: Editorial Brand Presence -->
+    <aside class="auth-editorial-aside">
+      <div>
+        <a href="/login" class="auth-editorial-brandmark">
+          <div class="brand-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 8V5a1 1 0 0 1 1-1h3"/>
+              <path d="M16 4h3a1 1 0 0 1 1 1v3"/>
+              <path d="M20 16v3a1 1 0 0 1-1 1h-3"/>
+              <path d="M8 20H5a1 1 0 0 1-1-1v-3"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <span class="brand-title">FORESIGHT</span>
+            <span class="brand-tagline">“Know the risk before you take the step.”</span>
+          </div>
+        </a>
+
+        <h1 class="auth-editorial-quote">
+          Register your security analyst profile.
+        </h1>
+        <p class="auth-editorial-desc">
+          Set up an isolated account to track scanned QR destinations, review forensic threat traces, and monitor high-volume incident reports.
+        </p>
+
+        <ul class="auth-feature-list">
+          <li class="auth-feature-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>PBKDF2 cryptographic key derivation (200,000 iterations)</span>
+          </li>
+          <li class="auth-feature-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Strict scan data isolation per user profile</span>
+          </li>
+          <li class="auth-feature-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>Direct access to full forensic destination reports</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="auth-editorial-footer-note">
+        FORESIGHT CYBERSECURITY PLATFORM &bull; SECURE REGISTRATION
+      </div>
+    </aside>
+
+    <!-- Right Column: Registration Form -->
+    <main class="auth-form-wrap">
+      <div class="auth-card">
+        <h2 class="auth-card-title">Create Account</h2>
+        <p class="auth-card-desc">Enter your details to generate your security workspace.</p>
+
+        <div class="form-error-alert" id="signup-error-alert"></div>
+
+        <form id="signup-form" onsubmit="handleSignup(event)">
+          <div class="form-group">
+            <label class="form-label" for="signup-name">Full Name</label>
+            <input class="form-input" type="text" id="signup-name" placeholder="Alex Morgan" required autocomplete="name">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-email">Work Email</label>
+            <input class="form-input" type="email" id="signup-email" placeholder="alex@company.com" required autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-password">Password</label>
+            <div class="form-input-wrap">
+              <input class="form-input" type="password" id="signup-password" placeholder="Minimum 6 characters" required autocomplete="new-password">
+              <button type="button" class="input-toggle-btn" onclick="togglePasswordVisibility('signup-password')" aria-label="Toggle password visibility">👁</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="signup-confirm">Confirm Password</label>
+            <div class="form-input-wrap">
+              <input class="form-input" type="password" id="signup-confirm" placeholder="Re-enter password" required autocomplete="new-password">
+              <button type="button" class="input-toggle-btn" onclick="togglePasswordVisibility('signup-confirm')" aria-label="Toggle password visibility">👁</button>
+            </div>
+          </div>
+
+          <button type="submit" class="cyber-btn" id="btn-signup" style="width: 100%; margin-top: 0.5rem;">
+            Register Account &rarr;
+          </button>
+        </form>
+
+        <div class="auth-card-footer">
+          Already registered? <a href="/login">Sign in</a>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    redirectIfLoggedIn();
+
+    function togglePasswordVisibility(id) {
+      const input = document.getElementById(id);
+      if (input) input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('signup-error-alert');
+      const btn = document.getElementById('btn-signup');
+      const name = document.getElementById('signup-name').value.trim();
+      const email = document.getElementById('signup-email').value.trim();
+      const password = document.getElementById('signup-password').value;
+      const confirm_password = document.getElementById('signup-confirm').value;
+
+      errBox.style.display = 'none';
+
+      if (password !== confirm_password) {
+        errBox.textContent = 'Passwords do not match.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating Account...';
+
+      try {
+        const resp = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, password, confirm_password })
+        });
+        const data = await resp.json();
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || data.message || 'Registration failed.');
+        }
+
+        setAuthToken(data.token);
+        window.location.href = '/scan';
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Register Account →';
+      }
+    }
+  </script>
+</body>
+</html>
