@@ -2,6 +2,10 @@
 FORESIGHT - Access Tracker, Authentication & Scan History Storage
 Maintains global 24-hour unique access monitoring for Cybercell review,
 secure user authentication (PBKDF2-HMAC-SHA256), and isolated personal scan histories.
+
+Supports:
+  - SQLite  (local development, FORESIGHT_DB_PATH or foresight.db)
+  - Postgres (Vercel / cloud deployment, DATABASE_URL env var)
 """
 
 import sqlite3
@@ -16,21 +20,154 @@ from contextlib import contextmanager
 import os
 import tempfile
 
-DB_PATH = os.environ.get("FORESIGHT_DB_PATH")
-if not DB_PATH:
-    if os.environ.get("VERCEL"):
-        DB_PATH = os.path.join(tempfile.gettempdir(), "foresight.db")
-    else:
-        DB_PATH = "foresight.db"
+# ---------------------------------------------------------------------------
+# Database backend selection
+# ---------------------------------------------------------------------------
+
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+_USE_POSTGRES = bool(DATABASE_URL)
+
+if not _USE_POSTGRES:
+    DB_PATH = os.environ.get("FORESIGHT_DB_PATH")
+    if not DB_PATH:
+        if os.environ.get("VERCEL"):
+            DB_PATH = os.path.join(tempfile.gettempdir(), "foresight.db")
+        else:
+            DB_PATH = "foresight.db"
+else:
+    DB_PATH = None  # unused when Postgres is active
+
+
+class _DictRow(dict):
+    """Dict subclass that also supports attribute-style access (row['key'] and row.key)."""
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
 
 @contextmanager
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=10.0)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-    finally:
-        conn.close()
+    """Yield a database connection that abstracts SQLite vs. Postgres."""
+    if _USE_POSTGRES:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        conn.autocommit = False
+        try:
+            yield _PgConnWrapper(conn)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    else:
+        conn = sqlite3.connect(DB_PATH, timeout=10.0)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+        finally:
+            conn.close()
+
+
+class _PgConnWrapper:
+    """
+    Thin wrapper around a psycopg2 connection that makes it behave like
+    a sqlite3 connection for FORESIGHT's usage patterns:
+      - conn.cursor()  returns a cursor whose fetchone()/fetchall() return
+        _DictRow objects (matching sqlite3.Row dict-style access).
+      - conn.commit()  delegates to the real connection.
+      - cursor.execute(sql, params) converts SQLite '?' placeholders to
+        Postgres '%s' placeholders and adapts AUTOINCREMENT syntax.
+      - cursor.lastrowid is populated from RETURNING id clauses.
+    """
+    def __init__(self, pg_conn):
+        self._conn = pg_conn
+
+    def cursor(self):
+        return _PgCursorWrapper(self._conn.cursor())
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def _adapt_sql(sql: str) -> str:
+    """
+    Convert SQLite SQL to Postgres SQL:
+      - Replace '?' parameter markers with '%s'
+      - Replace INTEGER PRIMARY KEY AUTOINCREMENT with SERIAL PRIMARY KEY
+      - Replace 'CREATE INDEX IF NOT EXISTS' (supported by Postgres)
+      - REAL -> DOUBLE PRECISION
+      - TEXT -> TEXT (same)
+    """
+    import re as _re
+    # Parameter markers
+    sql = sql.replace("?", "%s")
+    # AUTOINCREMENT
+    sql = _re.sub(r"INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY", sql, flags=_re.IGNORECASE)
+    # REAL type
+    sql = _re.sub(r"\bREAL\b", "DOUBLE PRECISION", sql, flags=_re.IGNORECASE)
+    # SQLite REFERENCES ... ON DELETE CASCADE inline — Postgres needs same syntax, fine
+    return sql
+
+
+class _PgCursorWrapper:
+    def __init__(self, cur):
+        self._cur = cur
+        self.lastrowid = None
+        self.rowcount = 0
+
+    def execute(self, sql, params=None):
+        adapted = _adapt_sql(sql)
+        import re as _re
+        is_insert = bool(_re.match(r"\s*INSERT", adapted, _re.IGNORECASE))
+        # Use RETURNING * so it works for any primary key column (id, incident_id, token, scan_id, etc.)
+        if is_insert and "RETURNING" not in adapted.upper():
+            adapted = adapted.rstrip().rstrip(";") + " RETURNING *"
+        if params is not None:
+            self._cur.execute(adapted, list(params))
+        else:
+            self._cur.execute(adapted)
+        self.rowcount = self._cur.rowcount
+        if is_insert:
+            row = self._cur.fetchone()
+            if row:
+                # Prefer numeric 'id' column; fall back to first value
+                if isinstance(row, dict):
+                    self.lastrowid = row.get("id") or next(iter(row.values()), None)
+                else:
+                    self.lastrowid = row[0]
+
+    def executemany(self, sql, seq_of_params):
+        adapted = _adapt_sql(sql)
+        import re as _re
+        is_insert = bool(_re.match(r"\s*INSERT", adapted, _re.IGNORECASE))
+        if is_insert and "RETURNING" not in adapted.upper():
+            adapted = adapted.rstrip().rstrip(";") + " RETURNING *"
+        for params in seq_of_params:
+            self._cur.execute(adapted, list(params))
+            if is_insert:
+                self._cur.fetchone()  # consume the RETURNING row
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            return _DictRow(row)
+        return row
+
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        return [_DictRow(r) if isinstance(r, dict) else r for r in rows]
 
 def init_db():
     with get_db() as conn:
