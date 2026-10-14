@@ -24,7 +24,13 @@ import tempfile
 # Backend selection
 # ---------------------------------------------------------------------------
 
-MONGODB_URI = os.environ.get("MONGODB_URI", "")
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+MONGODB_URI = os.environ.get("MONGODB_URI", "").strip()
 _USE_MONGO = bool(MONGODB_URI)
 
 if not _USE_MONGO:
@@ -51,7 +57,7 @@ def _get_mongo():
     if _mongo_database is None:
         from pymongo import MongoClient
         _mongo_client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
-        _mongo_database = _mongo_client.get_default_database() if "/" in MONGODB_URI.split("@")[-1] else _mongo_client["foresight"]
+        _mongo_database = _mongo_client.get_default_database(default="foresight")
     return _mongo_database
 
 
@@ -95,9 +101,15 @@ def get_db():
 # init_db  —  create tables / indexes on first run
 # ---------------------------------------------------------------------------
 
+_mongo_indexes_ready = False
+
+
 def init_db():
+    global _mongo_indexes_ready
     if _USE_MONGO:
-        _mongo_init_indexes()
+        if not _mongo_indexes_ready:
+            _mongo_init_indexes()
+            _mongo_indexes_ready = True
         return
 
     with get_db() as conn:
