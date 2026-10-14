@@ -25,7 +25,8 @@ from .storage.access_tracker import (
     get_user_dashboard_stats,
     record_access,
     get_all_incidents,
-    get_incident_by_id
+    get_incident_by_id,
+    get_platform_stats
 )
 from .qr_decoder import decode_qr_image
 
@@ -329,26 +330,7 @@ async def get_incident_dossier(incident_id: str):
 @app.get("/api/stats")
 async def get_system_stats():
     """Returns general platform monitoring stats."""
-    with get_db() as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) as total_scans FROM destination_accesses")
-        total_scans = cursor.fetchone()["total_scans"]
-
-        cursor.execute("SELECT COUNT(DISTINCT destination_hash) as unique_destinations FROM destination_accesses")
-        unique_destinations = cursor.fetchone()["unique_destinations"]
-
-        cursor.execute("SELECT COUNT(*) as incident_count FROM cybercell_incidents")
-        incident_count = cursor.fetchone()["incident_count"]
-
-        cursor.execute("SELECT COUNT(*) as total_users FROM users")
-        total_users = cursor.fetchone()["total_users"]
-
-    return {
-        "total_scans_recorded": total_scans,
-        "unique_destinations_monitored": unique_destinations,
-        "cybercell_incidents_triggered": incident_count,
-        "registered_users": total_users
-    }
+    return get_platform_stats()
 
 
 # ---------------------------------------------------------------------
