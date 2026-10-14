@@ -30,8 +30,13 @@ from .storage.access_tracker import (
 )
 from .qr_decoder import decode_qr_image
 
-# Initialize database schema
-init_db()
+# Initialize database schema. Never let a DB problem crash the whole
+# serverless function at import time; log it and retry on first use
+# (every storage function calls init_db() again).
+try:
+    init_db()
+except Exception as exc:  # noqa: BLE001
+    print(f"[FORESIGHT] init_db failed at startup: {exc!r}", flush=True)
 
 app = FastAPI(
     title="FORESIGHT API",
