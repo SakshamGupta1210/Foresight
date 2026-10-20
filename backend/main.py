@@ -4,7 +4,9 @@ Main FastAPI Application Server with Multi-Page Routing
 """
 
 import os
+import io
 from typing import Optional
+from PIL import Image, UnidentifiedImageError
 from fastapi import FastAPI, Request, HTTPException, UploadFile, File, Query
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -265,29 +267,111 @@ async def clear_all_scans(request: Request):
 # DYNAMIC QR SCANNING & DESTINATION ANALYSIS (AUTH-AWARE)
 # ---------------------------------------------------------------------
 
+MAX_UPLOAD_SIZE = 15 * 1024 * 1024  # 15 MB
+
+_IMAGE_MAGIC_SIGNATURES = (
+    b"\x89PNG\r\n\x1a\n",   # PNG
+    b"\xff\xd8\xff",         # JPEG
+    b"GIF87a", b"GIF89a",    # GIF
+    b"BM",                   # BMP
+    b"II*\x00", b"MM\x00*",  # TIFF
+)
+
+def _is_image_data(data: bytes) -> bool:
+    """Verifies whether byte sequence matches known image formats or WEBP."""
+    if data.startswith(_IMAGE_MAGIC_SIGNATURES):
+        return True
+    if len(data) >= 12 and data.startswith(b"RIFF") and data[8:12] == b"WEBP":
+        return True
+    return False
+
 @app.post("/api/scan-image")
 async def scan_qr_image(request: Request, file: UploadFile = File(...)):
     """
     Decodes ANY valid QR code from an uploaded image dynamically.
+    Provides structured, granular error feedback for unsupported, oversized,
+    corrupted, or non-QR images.
     Saves the scan to the user's personal history.
     """
     try:
         contents = await file.read()
-        if not contents:
-            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        if not contents or len(contents) == 0:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "success": False,
+                    "error_code": "EMPTY_FILE",
+                    "error": "Uploaded file is empty.",
+                    "message": "Uploaded file is empty.",
+                    "detail": "Uploaded file is empty.",
+                    "details": "The submitted file contains 0 bytes."
+                }
+            )
 
+        # 1. File Size Validation (15MB Limit)
+        if len(contents) > MAX_UPLOAD_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "success": False,
+                    "error_code": "FILE_TOO_LARGE",
+                    "error": "The image is too large. Please choose a smaller file.",
+                    "message": "The image is too large. Please choose a smaller file.",
+                    "detail": "The image is too large. Please choose a smaller file.",
+                    "details": f"File size ({len(contents)} bytes) exceeds the 15MB limit."
+                }
+            )
+
+        # 2. File Format / Image Integrity Check
+        # Check magic bytes; if not matching, check if PIL can interpret it
+        is_known_format = _is_image_data(contents)
+        if not is_known_format:
+            try:
+                with Image.open(io.BytesIO(contents)) as probe:
+                    _ = probe.format
+            except Exception:
+                return JSONResponse(
+                    status_code=415,
+                    content={
+                        "success": False,
+                        "error_code": "UNSUPPORTED_FILE_TYPE",
+                        "error": "Unsupported file type. Please upload a PNG, JPEG or WEBP image.",
+                        "message": "Unsupported file type. Please upload a PNG, JPEG or WEBP image.",
+                        "detail": "Unsupported file type. Please upload a PNG, JPEG or WEBP image.",
+                        "details": f"Unrecognized file format (filename='{file.filename}', content_type='{file.content_type}')."
+                    }
+                )
+
+        # 3. Attempt decoding with dual-engine decoder
         success, decoded_text, method = decode_qr_image(contents)
+
         if not success or not decoded_text:
+            # Distinguish corrupted/unreadable images from valid images without QR
+            if method and ("parsing error" in method.lower() or "invalid image" in method.lower()):
+                return JSONResponse(
+                    status_code=422,
+                    content={
+                        "success": False,
+                        "error_code": "CORRUPTED_IMAGE",
+                        "error": "We couldn't read this image. Please try another image.",
+                        "message": "We couldn't read this image. Please try another image.",
+                        "detail": "We couldn't read this image. Please try another image.",
+                        "details": method
+                    }
+                )
             return JSONResponse(
                 status_code=422,
                 content={
                     "success": False,
-                    "error": "No valid QR code could be decoded from this image.",
-                    "details": method
+                    "error_code": "NO_QR_DETECTED",
+                    "error": "No QR code detected. Please upload a clear image containing a QR code.",
+                    "message": "No QR code detected. Please upload a clear image containing a QR code.",
+                    "detail": "No QR code detected. Please upload a clear image containing a QR code.",
+                    "details": method or "No QR code detected in image"
                 }
             )
 
-        # Dynamic risk evaluation
+        # 4. Dynamic risk evaluation for successfully decoded payload
         analysis = evaluate_destination(decoded_text, follow_redirects=True)
         target_for_tracking = analysis.get("final_url") or decoded_text
 
@@ -315,7 +399,17 @@ async def scan_qr_image(request: Request, file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process image: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False,
+                "error_code": "SERVER_ERROR",
+                "error": "Server error while processing image. Please try again.",
+                "message": "Server error while processing image. Please try again.",
+                "detail": "Server error while processing image. Please try again.",
+                "details": str(e)
+            }
+        )
 
 
 @app.post("/api/analyze")

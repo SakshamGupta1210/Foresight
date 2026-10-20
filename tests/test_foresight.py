@@ -17,6 +17,7 @@ import io
 import uuid
 import unittest
 import qrcode
+from PIL import Image, ImageDraw
 
 # Add root directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -482,6 +483,114 @@ class TestEndpointsAndStaticFiles(unittest.TestCase):
 
         r5 = self.client.post("/api/auth/change-password", json={"current_password": "a", "new_password": "b"})
         self.assertEqual(r5.status_code, 401)
+
+
+class TestScanImageAPI(unittest.TestCase):
+
+    def setUp(self):
+        init_db()
+        self.client = TestClient(app)
+
+    def test_valid_qr_image_upload(self):
+        test_url = "https://legitimate-service.org/login"
+        qr = qrcode.make(test_url)
+        buf = io.BytesIO()
+        qr.save(buf, format="PNG")
+        buf.seek(0)
+
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("qrcode.png", buf.getvalue(), "image/png")}
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data.get("success"))
+        self.assertEqual(data.get("decoded_text"), test_url)
+        self.assertIn("analysis", data)
+        self.assertIn("score", data["analysis"])
+
+    def test_non_qr_regular_photo(self):
+        # Create an ordinary photo-like image with shapes and colors, but no QR
+        img = Image.new("RGB", (300, 300), color=(120, 180, 220))
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([40, 40, 260, 260], fill=(220, 140, 60))
+        draw.line([0, 0, 300, 300], fill=(0, 255, 0), width=4)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        buf.seek(0)
+
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("photo.jpg", buf.getvalue(), "image/jpeg")}
+        )
+        self.assertEqual(response.status_code, 422)
+        data = response.json()
+        self.assertFalse(data.get("success"))
+        self.assertEqual(data.get("error_code"), "NO_QR_DETECTED")
+        self.assertIn("No QR code detected", data.get("error", ""))
+
+    def test_blank_white_image(self):
+        img = Image.new("RGB", (250, 250), color=(255, 255, 255))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("blank.png", buf.getvalue(), "image/png")}
+        )
+        self.assertEqual(response.status_code, 422)
+        data = response.json()
+        self.assertFalse(data.get("success"))
+        self.assertEqual(data.get("error_code"), "NO_QR_DETECTED")
+        self.assertIn("No QR code detected", data.get("error", ""))
+
+    def test_corrupted_image(self):
+        # Corrupted PNG data
+        corrupted_data = b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + b"random_corrupted_payload_bytes_here"
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("corrupt.png", corrupted_data, "image/png")}
+        )
+        self.assertEqual(response.status_code, 422)
+        data = response.json()
+        self.assertFalse(data.get("success"))
+        self.assertIn(data.get("error_code"), ["CORRUPTED_IMAGE", "NO_QR_DETECTED"])
+
+    def test_unsupported_file_type(self):
+        plain_text_data = b"Hello, this is just a plain text document, not an image."
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("document.txt", plain_text_data, "text/plain")}
+        )
+        self.assertEqual(response.status_code, 415)
+        data = response.json()
+        self.assertFalse(data.get("success"))
+        self.assertEqual(data.get("error_code"), "UNSUPPORTED_FILE_TYPE")
+        self.assertIn("Unsupported file type", data.get("error", ""))
+
+    def test_oversized_file(self):
+        # Header + oversized payload exceeding 15MB
+        oversized_data = b"\x89PNG\r\n\x1a\n" + (b"A" * (15 * 1024 * 1024 + 500))
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("huge.png", oversized_data, "image/png")}
+        )
+        self.assertEqual(response.status_code, 413)
+        data = response.json()
+        self.assertFalse(data.get("success"))
+        self.assertEqual(data.get("error_code"), "FILE_TOO_LARGE")
+        self.assertIn("The image is too large", data.get("error", ""))
+
+    def test_empty_file(self):
+        response = self.client.post(
+            "/api/scan-image",
+            files={"file": ("empty.png", b"", "image/png")}
+        )
+        self.assertEqual(response.status_code, 400)
+        data = response.json()
+        self.assertFalse(data.get("success"))
+        self.assertEqual(data.get("error_code"), "EMPTY_FILE")
 
 
 if __name__ == "__main__":
