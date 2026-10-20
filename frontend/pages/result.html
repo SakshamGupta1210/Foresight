@@ -209,6 +209,11 @@
           const resp = await fetch(`/api/user/scans/${scanId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
+          if (resp.status === 401) {
+            setAuthToken(null);
+            window.location.href = '/login';
+            return;
+          }
           if (resp.ok) {
             const data = await resp.json();
             const scan = data.scan;
@@ -219,7 +224,7 @@
               final_url: scan.final_url,
               domain: scan.domain,
               reasons: scan.reasons || [],
-              redirects: scan.redirect_chain || [],
+              redirects: scan.redirect_chain || scan.redirects || [],
               heuristics: scan.heuristics || {}
             };
             currentAnalysis = syntheticAnalysis;
@@ -308,16 +313,30 @@
       // Redirects
       const redContainer = document.getElementById('redirect-hops-container');
       redContainer.innerHTML = '';
-      const redirects = analysis.redirects || [];
-      if (redirects.length === 0) {
+      const rawRed = analysis.redirects || {};
+      const hops = Array.isArray(rawRed) ? rawRed : (rawRed.hops || rawRed.hop_urls || []);
+      if (hops.length === 0) {
         redContainer.innerHTML = '<div style="font-size: 0.82rem; color: var(--text-muted);">Direct connection with no intermediary hops.</div>';
       } else {
-        redirects.forEach((hop, idx) => {
+        hops.forEach((hop, idx) => {
+          const hopUrl = typeof hop === 'string' ? hop : (hop.url || JSON.stringify(hop));
           const hopCard = document.createElement('div');
           hopCard.className = 'redirect-step-card';
-          hopCard.innerHTML = `<span class="redirect-step-badge">HOP ${idx + 1}</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(hop)}</span>`;
+          hopCard.innerHTML = `<span class="redirect-step-badge">HOP ${idx + 1}</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(hopUrl)}</span>`;
           redContainer.appendChild(hopCard);
         });
+      }
+
+      // Contextual Action Button (UPI, Text, or Web URL)
+      const btnProceed = document.getElementById('btn-proceed');
+      if (btnProceed) {
+        if (analysis.is_payment || analysis.payload_type === 'UPI') {
+          btnProceed.textContent = 'Open in Payment App \u2192';
+        } else if (analysis.payload_type === 'TEXT') {
+          btnProceed.textContent = 'Copy Text';
+        } else {
+          btnProceed.innerHTML = 'Proceed to URL &rarr;';
+        }
       }
     }
 
@@ -327,6 +346,18 @@
 
     function handleProceedAction() {
       if (!currentFinalUrl) return;
+      if (currentAnalysis && (currentAnalysis.is_payment || currentAnalysis.payload_type === 'UPI')) {
+        window.location.href = currentFinalUrl;
+        return;
+      }
+      if (currentAnalysis && currentAnalysis.payload_type === 'TEXT') {
+        navigator.clipboard.writeText(currentFinalUrl).then(() => {
+          alert('Payload text copied to clipboard.');
+        }).catch(() => {
+          alert('Content: ' + currentFinalUrl);
+        });
+        return;
+      }
       if (confirm(`You are navigating to: \n${currentFinalUrl}\n\nDo you want to proceed in a new tab?`)) {
         window.open(currentFinalUrl, '_blank', 'noopener,noreferrer');
       }

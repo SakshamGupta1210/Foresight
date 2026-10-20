@@ -285,6 +285,12 @@
           headers: { 'Authorization': `Bearer ${token}` },
           body: formData
         });
+        if (resp.status === 401) {
+          setAuthToken(null);
+          window.location.href = '/login';
+          return;
+        }
+
         const data = await resp.json();
 
         if (!resp.ok || !data.success) {
@@ -325,6 +331,12 @@
           },
           body: JSON.stringify({ payload: payload, action_taken: 'INSPECTED' })
         });
+        if (resp.status === 401) {
+          setAuthToken(null);
+          window.location.href = '/login';
+          return;
+        }
+
         const data = await resp.json();
 
         if (!resp.ok || !data.success) {

@@ -155,9 +155,18 @@
     async function fetchIncidents() {
       const tbody = document.getElementById('incidents-table-body');
       const emptyBox = document.getElementById('no-incidents-box');
+      const token = getAuthToken();
 
       try {
-        const resp = await fetch('/api/incidents');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const resp = await fetch('/api/incidents', { headers });
+
+        if (resp.status === 401) {
+          setAuthToken(null);
+          window.location.href = '/login';
+          return;
+        }
+
         const data = await resp.json();
 
         if (!resp.ok || !data.success) {

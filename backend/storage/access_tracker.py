@@ -633,6 +633,90 @@ def _mongo_get_user_scan_by_id(user_id: int, scan_id: str) -> Optional[Dict[str,
     }
 
 
+def delete_user_scan(user_id: int, scan_id: str) -> bool:
+    """Deletes a single scan record belonging to the user. Enforces strict ownership."""
+    if _USE_MONGO:
+        return _mongo_delete_user_scan(user_id, scan_id)
+
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_scans WHERE user_id = ? AND scan_id = ?", (user_id, scan_id))
+        conn.commit()
+        return cursor.rowcount > 0
+
+
+def _mongo_delete_user_scan(user_id: int, scan_id: str) -> bool:
+    db = _get_mongo()
+    res = db["user_scans"].delete_one({"user_id": user_id, "scan_id": scan_id})
+    return res.deleted_count > 0
+
+
+def clear_user_scans(user_id: int) -> int:
+    """Clears all scan history records for the user. Preserves global audit & incidents."""
+    if _USE_MONGO:
+        return _mongo_clear_user_scans(user_id)
+
+    init_db()
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM user_scans WHERE user_id = ?", (user_id,))
+        deleted = cursor.rowcount
+        conn.commit()
+        return deleted
+
+
+def _mongo_clear_user_scans(user_id: int) -> int:
+    db = _get_mongo()
+    res = db["user_scans"].delete_many({"user_id": user_id})
+    return res.deleted_count
+
+
+def change_user_password(user_id: int, current_password: str, new_password: str) -> bool:
+    """Verifies current password and updates to new PBKDF2 hashed password."""
+    if _USE_MONGO:
+        return _mongo_change_user_password(user_id, current_password, new_password)
+
+    init_db()
+    if not new_password or len(new_password) < 6:
+        raise ValueError("New password must be at least 6 characters long.")
+
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, password_hash, salt FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError("User not found.")
+
+        if not verify_password(current_password, row["password_hash"], row["salt"]):
+            raise ValueError("Current password is incorrect.")
+
+        new_hash, new_salt = hash_password(new_password)
+        cursor.execute("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?", (new_hash, new_salt, user_id))
+        conn.commit()
+        return True
+
+
+def _mongo_change_user_password(user_id: int, current_password: str, new_password: str) -> bool:
+    if not new_password or len(new_password) < 6:
+        raise ValueError("New password must be at least 6 characters long.")
+
+    db = _get_mongo()
+    user = db["users"].find_one({"id": user_id})
+    if not user:
+        raise ValueError("User not found.")
+
+    if not verify_password(current_password, user["password_hash"], user["salt"]):
+        raise ValueError("Current password is incorrect.")
+
+    new_hash, new_salt = hash_password(new_password)
+    db["users"].update_one(
+        {"id": user_id},
+        {"$set": {"password_hash": new_hash, "salt": new_salt}}
+    )
+    return True
+
+
 def get_user_dashboard_stats(user_id: int) -> Dict[str, Any]:
     """Calculates summary scan metrics for user's personal dashboard."""
     if _USE_MONGO:

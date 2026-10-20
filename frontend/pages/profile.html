@@ -59,7 +59,7 @@
         <div class="page-kicker">Security Analyst Identity</div>
         <h1 class="page-title">Profile &amp; Session</h1>
         <p class="page-subtitle">
-          Account credentials, session telemetry, and your personalized destination scan statistics.
+          Account credentials, security settings, and your personalized destination scan statistics.
         </p>
       </div>
       <button class="cyber-btn secondary" onclick="handleLogout()">
@@ -83,9 +83,14 @@
           <span class="detail-label">Email Address</span>
           <span class="detail-value" id="profile-email">Loading...</span>
         </div>
-        <div class="detail-row">
-          <span class="detail-label">Password Protection</span>
-          <span class="detail-value">PBKDF2-HMAC-SHA256 (200,000 salt iterations)</span>
+        <div class="detail-row" style="align-items: center;">
+          <span class="detail-label">Password</span>
+          <div style="display: flex; align-items: center; gap: 0.75rem; justify-content: flex-end;">
+            <span class="detail-value" style="font-family: var(--font-mono); letter-spacing: 0.15em;">••••••••••••</span>
+            <button type="button" class="cyber-btn secondary" onclick="openChangePasswordModal()" style="padding: 0.3rem 0.65rem; font-size: 0.75rem;">
+              Change Password
+            </button>
+          </div>
         </div>
         <div class="detail-row">
           <span class="detail-label">Registration Date</span>
@@ -101,7 +106,8 @@
         Scan Evaluation Breakdown
       </h2>
 
-      <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+      <!-- Responsive Metric Grid -->
+      <div class="stats-grid-4">
         <div style="background: var(--bg-surface-subtle); padding: 1.25rem 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); text-align: center;">
           <div style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted);">Total Scans</div>
           <div id="stat-total" style="font-size: 1.85rem; font-weight: 800; font-family: var(--font-mono); color: var(--text-primary); margin-top: 0.35rem;">0</div>
@@ -129,6 +135,41 @@
 
   </main>
 
+  <!-- Change Password Modal -->
+  <div class="modal-overlay" id="password-modal" onclick="closeChangePasswordModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 440px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.75rem;">
+        <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--text-primary); margin: 0;">Change Password</h2>
+        <button onclick="closeChangePasswordModal()" style="background: none; border: none; font-size: 1.35rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+      </div>
+
+      <div class="form-error-alert" id="password-error-alert" style="display: none; margin-bottom: 1rem;"></div>
+      <div id="password-success-alert" style="display: none; padding: 0.65rem 0.85rem; font-size: 0.82rem; border-radius: var(--radius-sm); background: var(--risk-safe-bg); border: 1px solid var(--risk-safe-border); color: var(--risk-safe-text); margin-bottom: 1rem;"></div>
+
+      <form id="change-password-form" onsubmit="handleChangePassword(event)">
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="current-pwd">Current Password</label>
+          <input class="form-input" type="password" id="current-pwd" placeholder="Enter current password" required autocomplete="current-password">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1rem;">
+          <label class="form-label" for="new-pwd">New Password</label>
+          <input class="form-input" type="password" id="new-pwd" placeholder="At least 6 characters" required autocomplete="new-password">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label class="form-label" for="confirm-new-pwd">Confirm New Password</label>
+          <input class="form-input" type="password" id="confirm-new-pwd" placeholder="Re-enter new password" required autocomplete="new-password">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="cyber-btn secondary" onclick="closeChangePasswordModal()">Cancel</button>
+          <button type="submit" class="cyber-btn" id="btn-save-pwd">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     requireAuth();
 
@@ -138,10 +179,22 @@
 
     async function fetchUserProfile() {
       const token = getAuthToken();
+      if (!token) {
+        window.location.href = '/login';
+        return;
+      }
+
       try {
         const resp = await fetch('/api/auth/me', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (resp.status === 401) {
+          setAuthToken(null);
+          window.location.href = '/login';
+          return;
+        }
+
         const data = await resp.json();
 
         if (!resp.ok || !data.success) {
@@ -161,6 +214,93 @@
         document.getElementById('stat-dangerous').textContent = sum.dangerous_scans || 0;
       } catch (err) {
         console.warn('Profile fetch failed:', err);
+        document.getElementById('profile-name').textContent = 'Unable to load';
+        document.getElementById('profile-email').textContent = 'Unable to load';
+      }
+    }
+
+    function openChangePasswordModal() {
+      const modal = document.getElementById('password-modal');
+      const errBox = document.getElementById('password-error-alert');
+      const succBox = document.getElementById('password-success-alert');
+      errBox.style.display = 'none';
+      succBox.style.display = 'none';
+      document.getElementById('change-password-form').reset();
+      modal.style.display = 'flex';
+    }
+
+    function closeChangePasswordModal(e) {
+      if (!e || e.target.id === 'password-modal' || !e.target.closest('.modal-content')) {
+        document.getElementById('password-modal').style.display = 'none';
+      }
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const errBox = document.getElementById('password-error-alert');
+      const succBox = document.getElementById('password-success-alert');
+      const btn = document.getElementById('btn-save-pwd');
+      const curPwd = document.getElementById('current-pwd').value;
+      const newPwd = document.getElementById('new-pwd').value;
+      const confirmPwd = document.getElementById('confirm-new-pwd').value;
+
+      errBox.style.display = 'none';
+      succBox.style.display = 'none';
+
+      if (newPwd !== confirmPwd) {
+        errBox.textContent = 'New Password and Confirm Password do not match.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      if (newPwd.length < 6) {
+        errBox.textContent = 'New password must be at least 6 characters.';
+        errBox.style.display = 'block';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Updating...';
+
+      try {
+        const token = getAuthToken();
+        const resp = await fetch('/api/auth/change-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            current_password: curPwd,
+            new_password: newPwd,
+            confirm_password: confirmPwd
+          })
+        });
+
+        const data = await resp.json();
+
+        if (resp.status === 401) {
+          setAuthToken(null);
+          window.location.href = '/login';
+          return;
+        }
+
+        if (!resp.ok || !data.success) {
+          throw new Error(data.detail || 'Failed to update password.');
+        }
+
+        succBox.textContent = 'Password updated successfully.';
+        succBox.style.display = 'block';
+        document.getElementById('change-password-form').reset();
+        setTimeout(() => {
+          closeChangePasswordModal();
+        }, 1200);
+      } catch (err) {
+        errBox.textContent = err.message;
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Update Password';
       }
     }
   </script>

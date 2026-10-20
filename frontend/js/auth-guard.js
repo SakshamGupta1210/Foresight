@@ -41,6 +41,22 @@ async function requireAuth() {
   }
 }
 
+async function authFetch(url, options = {}) {
+  const token = getAuthToken();
+  const headers = Object.assign({}, options.headers || {});
+  if (token && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  options.headers = headers;
+  const resp = await fetch(url, options);
+  if (resp.status === 401) {
+    setAuthToken(null);
+    window.location.href = "/login";
+    throw new Error("Session expired. Please log in again.");
+  }
+  return resp;
+}
+
 async function redirectIfLoggedIn() {
   const token = getAuthToken();
   if (!token) return;

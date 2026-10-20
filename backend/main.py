@@ -22,6 +22,9 @@ from .storage.access_tracker import (
     save_user_scan,
     get_user_scans,
     get_user_scan_by_id,
+    delete_user_scan,
+    clear_user_scans,
+    change_user_password,
     get_user_dashboard_stats,
     record_access,
     get_all_incidents,
@@ -103,6 +106,11 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+    confirm_password: Optional[str] = None
+
 class AnalyzeRequest(BaseModel):
     payload: str
     client_id: Optional[str] = None
@@ -174,6 +182,20 @@ async def get_my_profile(request: Request):
         }
     }
 
+@app.post("/api/auth/change-password")
+async def handle_change_password(request: Request, body: ChangePasswordRequest):
+    """Securely updates password after verifying current credentials."""
+    user = get_current_user_required(request)
+    if body.confirm_password is not None and body.new_password != body.confirm_password:
+        raise HTTPException(status_code=400, detail="New password and Confirm Password do not match.")
+    try:
+        change_user_password(user["id"], body.current_password, body.new_password)
+        return {"success": True, "message": "Password updated successfully."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")
+
 
 # ---------------------------------------------------------------------
 # USER SCAN HISTORY ENDPOINTS (STRICT DATA ISOLATION)
@@ -209,6 +231,33 @@ async def get_single_scan_details(request: Request, scan_id: str):
     return {
         "success": True,
         "scan": scan
+    }
+
+@app.delete("/api/user/scans/{scan_id}")
+async def delete_single_scan(request: Request, scan_id: str):
+    """Deletes an individual scan record strictly owned by the authenticated user."""
+    user = get_current_user_required(request)
+    success = delete_user_scan(user["id"], scan_id)
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail="Scan record not found or access unauthorized."
+        )
+    return {
+        "success": True,
+        "message": "Scan record deleted successfully.",
+        "scan_id": scan_id
+    }
+
+@app.delete("/api/user/scans")
+async def clear_all_scans(request: Request):
+    """Permanently clears all personal scan history records for the current user."""
+    user = get_current_user_required(request)
+    deleted_count = clear_user_scans(user["id"])
+    return {
+        "success": True,
+        "message": f"Successfully deleted {deleted_count} scan record(s).",
+        "deleted_count": deleted_count
     }
 
 
@@ -342,18 +391,56 @@ async def get_system_stats():
 # MULTI-PAGE APPLICATION ROUTES & STATIC ASSETS
 # ---------------------------------------------------------------------
 
-frontend_dir = os.environ.get("FORESIGHT_FRONTEND_DIR")
-if not frontend_dir or not os.path.isdir(frontend_dir):
-    frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
-    if not os.path.isdir(frontend_dir):
-        candidate = os.path.abspath("frontend")
-        if os.path.isdir(candidate):
-            frontend_dir = candidate
+frontend_candidates = [
+    os.environ.get("FORESIGHT_FRONTEND_DIR"),
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend")),
+    os.path.abspath(os.path.join(os.getcwd(), "frontend")),
+    os.path.abspath("frontend"),
+    "/var/task/frontend",
+]
+frontend_dir = None
+for cand in frontend_candidates:
+    if cand and os.path.isdir(cand):
+        frontend_dir = os.path.abspath(cand)
+        break
 
 pages_dir = os.path.join(frontend_dir, "pages") if frontend_dir else ""
 
 if frontend_dir and os.path.isdir(frontend_dir):
     app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
+# Explicit fallback routes for core static assets (prevents 404s on serverless)
+@app.get("/static/css/styles.css")
+async def static_styles():
+    if frontend_dir:
+        p = os.path.join(frontend_dir, "css", "styles.css")
+        if os.path.exists(p):
+            return FileResponse(p, media_type="text/css")
+    raise HTTPException(status_code=404, detail="styles.css not found")
+
+@app.get("/static/js/auth-guard.js")
+async def static_auth_guard():
+    if frontend_dir:
+        p = os.path.join(frontend_dir, "js", "auth-guard.js")
+        if os.path.exists(p):
+            return FileResponse(p, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="auth-guard.js not found")
+
+@app.get("/static/js/app.js")
+async def static_app_js():
+    if frontend_dir:
+        p = os.path.join(frontend_dir, "js", "app.js")
+        if os.path.exists(p):
+            return FileResponse(p, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="app.js not found")
+
+@app.get("/static/js/jsQR.js")
+async def static_jsqr():
+    if frontend_dir:
+        p = os.path.join(frontend_dir, "js", "jsQR.js")
+        if os.path.exists(p):
+            return FileResponse(p, media_type="application/javascript")
+    raise HTTPException(status_code=404, detail="jsQR.js not found")
 
 @app.get("/", response_class=RedirectResponse)
 async def root():

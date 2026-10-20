@@ -63,3 +63,4 @@ desktop.ini
 # Logs & temporary files
 *.log
 scratch/
+*.zip

@@ -108,7 +108,9 @@
   </div>
 
   <script>
-    redirectIfLoggedIn();
+    if (typeof redirectIfLoggedIn === 'function') {
+      redirectIfLoggedIn();
+    }
 
     function togglePasswordVisibility(id) {
       const input = document.getElementById(id);

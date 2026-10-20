@@ -33,10 +33,15 @@ from backend.storage.access_tracker import (
     save_user_scan,
     get_user_scans,
     get_user_scan_by_id,
+    delete_user_scan,
+    clear_user_scans,
+    change_user_password,
     get_user_dashboard_stats,
     record_access,
     get_incident_by_id
 )
+from fastapi.testclient import TestClient
+from backend.main import app
 
 class TestForesightHeuristics(unittest.TestCase):
 
@@ -276,6 +281,207 @@ class TestAccessTrackerRealActivity(unittest.TestCase):
         self.assertTrue(res_100["threshold_met"])
         self.assertIsNotNone(res_100["incident_report"])
         self.assertTrue(res_100["incident_report"]["incident_id"].startswith("CC-INC-2026-"))
+
+
+class TestPaymentAndAlternativePayloads(unittest.TestCase):
+
+    def test_valid_upi_qr(self):
+        upi_payload = "upi://pay?pa=merchant.store@okhdfcbank&pn=Super%20Mart&am=450.00&cu=INR"
+        res = evaluate_destination(upi_payload, follow_redirects=False)
+        self.assertEqual(res["status"], "SAFE")
+        self.assertLess(res["score"], 30)
+        self.assertTrue(res["is_payment"])
+        self.assertEqual(res["payload_type"], "UPI")
+        self.assertEqual(res["payment_details"]["payee_address"], "merchant.store@okhdfcbank")
+        self.assertEqual(res["payment_details"]["payee_name"], "Super Mart")
+        self.assertTrue(res["payment_details"]["is_fixed_amount"])
+        self.assertTrue(any("Super Mart" in r for r in res["reasons"]))
+
+    def test_malformed_upi_missing_pa(self):
+        bad_upi = "upi://pay?pn=UnknownStore&am=100.00"
+        res = evaluate_destination(bad_upi, follow_redirects=False)
+        self.assertIn(res["status"], ["SUSPICIOUS", "DANGEROUS"])
+        self.assertGreaterEqual(res["score"], 30)
+        self.assertTrue(any("Missing mandatory payee address" in r for r in res["reasons"]))
+
+    def test_deceptive_payee_name_upi(self):
+        deceptive_upi = "upi://pay?pa=scam@upi&pn=Police%20Cybercell%20Penalty%20Fine&am=5000"
+        res = evaluate_destination(deceptive_upi, follow_redirects=False)
+        self.assertIn(res["status"], ["SUSPICIOUS", "DANGEROUS"])
+        self.assertGreaterEqual(res["score"], 40)
+        self.assertTrue(any("Coercive or deceptive payee name" in r for r in res["reasons"]))
+
+    def test_plain_text_payload(self):
+        text_payload = "Room 302 Confirmed Booking Reference 88412"
+        res = evaluate_destination(text_payload, follow_redirects=False)
+        self.assertEqual(res["status"], "SAFE")
+        self.assertEqual(res["score"], 0)
+        self.assertEqual(res["payload_type"], "TEXT")
+        self.assertFalse(res["is_payment"])
+
+    def test_contact_vcard_payload(self):
+        vcard_payload = "BEGIN:VCARD\nVERSION:3.0\nFN:Inspector Sharma\nTEL:+919876543210\nEND:VCARD"
+        res = evaluate_destination(vcard_payload, follow_redirects=False)
+        self.assertEqual(res["status"], "SAFE")
+        self.assertLess(res["score"], 30)
+        self.assertEqual(res["payload_type"], "CONTACT")
+
+    def test_wifi_payload(self):
+        wifi_payload = "WIFI:S:GuestAccess;T:WPA;P:Welcome2026;;"
+        res = evaluate_destination(wifi_payload, follow_redirects=False)
+        self.assertEqual(res["status"], "SAFE")
+        self.assertLess(res["score"], 30)
+        self.assertEqual(res["payload_type"], "WIFI")
+
+
+class TestHttpVsHttpsScoring(unittest.TestCase):
+
+    def test_legitimate_http_website_not_falsely_suspicious(self):
+        # A normal HTTP site without phishing/fraud indicators should NOT be marked SUSPICIOUS (score < 30)
+        res = evaluate_destination("http://example.com", follow_redirects=False)
+        self.assertEqual(res["status"], "SAFE")
+        self.assertLess(res["score"], 30)
+        self.assertTrue(any("Unencrypted transport" in r for r in res["reasons"]))
+
+    def test_legitimate_https_website(self):
+        res = evaluate_destination("https://example.com", follow_redirects=False)
+        self.assertEqual(res["status"], "SAFE")
+        self.assertLess(res["score"], 30)
+
+
+class TestSSRFPrevention(unittest.TestCase):
+
+    def test_ssrf_loopback_blocked(self):
+        res = evaluate_destination("http://127.0.0.1:8000/api/admin", follow_redirects=True)
+        self.assertIn(res["status"], ["SUSPICIOUS", "DANGEROUS"])
+        self.assertGreaterEqual(res["score"], 30)
+        self.assertTrue(any("SSRF" in r or "private" in r or "internal" in r.lower() for r in res["reasons"]))
+
+    def test_ssrf_metadata_ip_blocked(self):
+        res = evaluate_destination("http://169.254.169.254/latest/meta-data", follow_redirects=True)
+        self.assertIn(res["status"], ["SUSPICIOUS", "DANGEROUS"])
+        self.assertGreaterEqual(res["score"], 30)
+        self.assertTrue(any("SSRF" in r or "internal" in r.lower() or "blocked" in r.lower() for r in res["reasons"]))
+
+
+class TestHistoryDeletionAndOwnership(unittest.TestCase):
+
+    def setUp(self):
+        init_db()
+
+    def test_delete_single_scan_and_ownership(self):
+        uid_a = uuid.uuid4().hex[:6]
+        user_a, _ = create_user("Deleter A", f"del_a_{uid_a}@test.com", "Password123")
+        uid_b = uuid.uuid4().hex[:6]
+        user_b, _ = create_user("Deleter B", f"del_b_{uid_b}@test.com", "Password123")
+
+        scan = save_user_scan(user_a["id"], {
+            "original_url": "https://delete-me.org",
+            "final_url": "https://delete-me.org",
+            "domain": "delete-me.org",
+            "score": 15,
+            "status": "SAFE"
+        })
+
+        # User B CANNOT delete User A's scan
+        deleted_by_b = delete_user_scan(user_b["id"], scan["scan_id"])
+        self.assertFalse(deleted_by_b)
+
+        # Scan still exists for User A
+        self.assertIsNotNone(get_user_scan_by_id(user_a["id"], scan["scan_id"]))
+
+        # User A CAN delete their own scan
+        deleted_by_a = delete_user_scan(user_a["id"], scan["scan_id"])
+        self.assertTrue(deleted_by_a)
+
+        # Scan no longer exists
+        self.assertIsNone(get_user_scan_by_id(user_a["id"], scan["scan_id"]))
+
+    def test_clear_all_scans_isolation(self):
+        uid_a = uuid.uuid4().hex[:6]
+        user_a, _ = create_user("Clearer A", f"clr_a_{uid_a}@test.com", "Password123")
+        uid_b = uuid.uuid4().hex[:6]
+        user_b, _ = create_user("Clearer B", f"clr_b_{uid_b}@test.com", "Password123")
+
+        save_user_scan(user_a["id"], {"original_url": "https://a1.org", "score": 10, "status": "SAFE"})
+        save_user_scan(user_a["id"], {"original_url": "https://a2.org", "score": 20, "status": "SAFE"})
+        save_user_scan(user_b["id"], {"original_url": "https://b1.org", "score": 30, "status": "SUSPICIOUS"})
+
+        # User A clears their scans
+        cleared_count = clear_user_scans(user_a["id"])
+        self.assertEqual(cleared_count, 2)
+        self.assertEqual(len(get_user_scans(user_a["id"])), 0)
+
+        # User B's scan remains untouched
+        scans_b = get_user_scans(user_b["id"])
+        self.assertEqual(len(scans_b), 1)
+        self.assertEqual(scans_b[0]["original_url"], "https://b1.org")
+
+
+class TestChangePassword(unittest.TestCase):
+
+    def setUp(self):
+        init_db()
+
+    def test_change_password_flow(self):
+        uid = uuid.uuid4().hex[:6]
+        email = f"pwd_user_{uid}@test.com"
+        old_pwd = "OldPassword123"
+        new_pwd = "NewPassword456"
+
+        user, _ = create_user("Password Changer", email, old_pwd)
+
+        # Wrong current password should fail
+        with self.assertRaises(ValueError):
+            change_user_password(user["id"], "IncorrectOldPwd", new_pwd)
+
+        # Too short new password should fail
+        with self.assertRaises(ValueError):
+            change_user_password(user["id"], old_pwd, "123")
+
+        # Correct current password succeeds
+        res = change_user_password(user["id"], old_pwd, new_pwd)
+        self.assertTrue(res)
+
+        # Old password no longer authenticates
+        with self.assertRaises(ValueError):
+            authenticate_user(email, old_pwd)
+
+        # New password authenticates successfully
+        u_auth, tok = authenticate_user(email, new_pwd)
+        self.assertEqual(u_auth["id"], user["id"])
+        self.assertTrue(len(tok) > 20)
+
+
+class TestEndpointsAndStaticFiles(unittest.TestCase):
+
+    def setUp(self):
+        self.client = TestClient(app)
+
+    def test_static_files_return_200(self):
+        resp_css = self.client.get("/static/css/styles.css")
+        self.assertEqual(resp_css.status_code, 200)
+        self.assertIn("text/css", resp_css.headers.get("content-type", ""))
+
+        resp_guard = self.client.get("/static/js/auth-guard.js")
+        self.assertEqual(resp_guard.status_code, 200)
+
+    def test_api_auth_required_endpoints(self):
+        # Protected endpoints return 401 without Bearer token
+        r1 = self.client.get("/api/auth/me")
+        self.assertEqual(r1.status_code, 401)
+
+        r2 = self.client.get("/api/user/scans")
+        self.assertEqual(r2.status_code, 401)
+
+        r3 = self.client.delete("/api/user/scans/SCN-FAKE123")
+        self.assertEqual(r3.status_code, 401)
+
+        r4 = self.client.delete("/api/user/scans")
+        self.assertEqual(r4.status_code, 401)
+
+        r5 = self.client.post("/api/auth/change-password", json={"current_password": "a", "new_password": "b"})
+        self.assertEqual(r5.status_code, 401)
 
 
 if __name__ == "__main__":

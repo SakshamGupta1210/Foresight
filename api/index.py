@@ -11,8 +11,9 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-# Set serverless environment indicator
+# Set serverless environment indicator and ensure frontend directory path is absolute
 os.environ.setdefault("VERCEL", "1")
+os.environ.setdefault("FORESIGHT_FRONTEND_DIR", os.path.join(REPO_ROOT, "frontend"))
 
 # Export FastAPI app for Vercel's @vercel/python runtime
 from backend.main import app

@@ -39,6 +39,23 @@ SUSPICIOUS_KEYWORDS = [
     "giftcard", "airdrop", "free-crypto", "bonus-prize", "kyc-update", "otp"
 ]
 
+# Country code double TLDs frequently used worldwide
+MULTI_PART_TLDS = {
+    "co.in", "net.in", "org.in", "gen.in", "ind.in", "ac.in", "edu.in", "res.in",
+    "gov.in", "mil.in", "co.uk", "org.uk", "me.uk", "ltd.uk", "plc.uk", "net.uk",
+    "sch.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "edu.au", "gov.au",
+    "co.nz", "net.nz", "org.nz", "co.jp", "ne.jp", "or.jp", "ac.jp", "go.jp",
+    "co.za", "org.za", "com.br", "net.br", "org.br", "com.sg", "edu.sg", "gov.sg"
+}
+
+# Common English words that happen to share small edit distance with brand names
+# Prevents false positive typosquatting detections on legitimate sites
+LEGITIMATE_DICTIONARY_WORDS = {
+    "apply", "maple", "ample", "phase", "share", "case", "strike", "stride",
+    "abode", "ripe", "tripe", "plane", "plant", "globe", "trace", "grace", "space"
+}
+
+
 # Known malicious threat indicators (sample known signatures / patterns)
 KNOWN_MALICIOUS_DOMAINS = {
     "malicious-phish-portal.xyz",
@@ -94,8 +111,11 @@ def extract_domain_parts(parsed_url) -> Tuple[str, str, List[str]]:
 
     parts = netloc.split(".")
     if len(parts) >= 2:
-        # Handle country code double TLDs (e.g. .co.in, .com.au)
-        if len(parts) >= 3 and parts[-2] in {"co", "com", "org", "net", "gov", "edu"}:
+        # Handle country code double TLDs (e.g. .co.in, .ac.in, .gov.uk)
+        if len(parts) >= 3 and f"{parts[-2]}.{parts[-1]}" in MULTI_PART_TLDS:
+            reg_domain = ".".join(parts[-3:])
+            subdomains = parts[:-3]
+        elif len(parts) >= 3 and parts[-2] in {"co", "com", "org", "net", "gov", "edu"}:
             reg_domain = ".".join(parts[-3:])
             subdomains = parts[:-3]
         else:
@@ -157,20 +177,31 @@ def check_domain_spoofing(reg_domain: str, subdomains: List[str], full_host: str
     # 3. Levenshtein distance check on the SLD (Second-Level Domain)
     reg_sld = reg_domain.split(".")[0] if "." in reg_domain else reg_domain
     
-    for target in HIGH_PROFILE_TARGETS:
-        target_sld = target.split(".")[0]
-        dist = calculate_levenshtein(reg_sld, target_sld)
-        
-        # Edit distance of 1 or 2 on words of length >= 4 is a strong typosquatting indicator
-        if 0 < dist <= 2 and abs(len(reg_sld) - len(target_sld)) <= 2:
-            return {
-                "spoof_detected": True,
-                "target_brand": target,
-                "type": "typosquatting",
-                "edit_distance": dist,
-                "severity": "CRITICAL",
-                "reason": f"Domain '{reg_domain}' closely mimics legitimate brand '{target}' (typosquatting distance: {dist})"
-            }
+    if reg_sld.lower() not in LEGITIMATE_DICTIONARY_WORDS:
+        for target in HIGH_PROFILE_TARGETS:
+            target_sld = target.split(".")[0]
+            # Only run fuzzy Levenshtein on brands with at least 4 characters
+            if len(target_sld) < 4:
+                continue
+
+            dist = calculate_levenshtein(reg_sld, target_sld)
+            
+            # Edit distance of 1 on words of length >= 4, or dist == 2 on words of length >= 7
+            is_typo = False
+            if dist == 1 and abs(len(reg_sld) - len(target_sld)) <= 1:
+                is_typo = True
+            elif dist == 2 and len(target_sld) >= 7 and abs(len(reg_sld) - len(target_sld)) <= 2:
+                is_typo = True
+
+            if is_typo:
+                return {
+                    "spoof_detected": True,
+                    "target_brand": target,
+                    "type": "typosquatting",
+                    "edit_distance": dist,
+                    "severity": "CRITICAL",
+                    "reason": f"Domain '{reg_domain}' closely mimics legitimate brand '{target}' (typosquatting distance: {dist})"
+                }
 
     # 4. Common lookalike character substitutions
     normalized_sld = reg_sld.replace("1", "l").replace("0", "o").replace("vv", "w").replace("rn", "m")
@@ -239,8 +270,8 @@ def analyze_heuristics(url_string: str) -> Dict[str, Any]:
         reasons.append(msg)
         findings.append({"type": "scheme", "severity": "HIGH", "message": msg})
     elif scheme == "http":
-        penalties += 10
-        msg = "Unencrypted connection (HTTP instead of HTTPS)"
+        penalties += 8
+        msg = "Unencrypted transport: Destination uses plain HTTP rather than HTTPS (data in transit is not protected)"
         reasons.append(msg)
         findings.append({"type": "scheme", "severity": "LOW", "message": msg})
 
@@ -336,6 +367,12 @@ def analyze_heuristics(url_string: str) -> Dict[str, Any]:
         reasons.append(msg)
         findings.append({"type": "url_length", "severity": "LOW", "message": msg})
 
+    has_typo = spoof_info.get("spoof_detected", False)
+    similar_brand = spoof_info.get("target_brand")
+    has_punycode = "xn--" in netloc
+    has_bad_tld = tld in SUSPICIOUS_TLDS
+    has_bad_ext = any(path.endswith(ext) or (ext + "?" in path) for ext in SUSPICIOUS_EXTENSIONS)
+
     return {
         "is_valid": True,
         "scheme": scheme,
@@ -348,5 +385,11 @@ def analyze_heuristics(url_string: str) -> Dict[str, Any]:
         "findings": findings,
         "reasons": reasons,
         "spoof_info": spoof_info,
-        "entropy": round(entropy, 2)
+        "entropy": round(entropy, 2),
+        "typosquatting_detected": has_typo,
+        "similar_to_brand": similar_brand,
+        "punycode_detected": has_punycode,
+        "high_risk_tld": has_bad_tld,
+        "suspicious_file_extension": has_bad_ext,
+        "resolved_ip": "Standard DNS"
     }
