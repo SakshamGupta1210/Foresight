@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Analysis Result — FORESIGHT</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="stylesheet" href="/static/css/styles.css?v=20261028_layout_fix">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -55,11 +55,11 @@
   <main class="main-container">
     
     <!-- Top Action Breadcrumb Bar -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;">
       <a href="/scan" style="display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text-secondary); text-decoration: none; font-size: 0.85rem; font-weight: 500;">
         &larr; Scan another QR code
       </a>
-      <div id="scan-reference-tag" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: var(--bg-surface-subtle); padding: 0.25rem 0.65rem; border-radius: var(--radius-xs); border: 1px solid var(--border-subtle);">
+      <div id="scan-reference-tag" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); background: var(--bg-surface-subtle); padding: 0.25rem 0.65rem; border-radius: var(--radius-xs); border: 1px solid var(--border-subtle); max-width: 100%; word-break: break-all;">
         REF: SCN-LOADING
       </div>
     </div>
@@ -99,15 +99,15 @@
     <div class="cyber-card" style="padding: 2rem;">
       
       <!-- Primary Destination Inspection -->
-      <div style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1.5rem; margin-bottom: 1.5rem;">
+      <div style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 1.5rem; margin-bottom: 1.5rem; min-width: 0; max-width: 100%; overflow: hidden;">
         <div class="page-kicker" style="margin-bottom: 0.35rem;">Destination Payload</div>
-        <div id="display-final-url" style="font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; color: var(--text-primary); word-break: break-all; margin-bottom: 0.75rem;">
+        <div id="display-final-url" style="font-family: var(--font-mono); font-size: 1.05rem; font-weight: 600; color: var(--text-primary); word-break: break-all; overflow-wrap: anywhere; max-width: 100%; margin-bottom: 0.75rem;">
           Loading destination...
         </div>
         <div style="display: flex; gap: 1.5rem; flex-wrap: wrap; font-size: 0.82rem; color: var(--text-secondary);">
-          <div><strong>Domain:</strong> <span id="meta-domain" style="font-family: var(--font-mono); color: var(--text-primary);">-</span></div>
+          <div><strong>Domain:</strong> <span id="meta-domain" style="font-family: var(--font-mono); color: var(--text-primary); word-break: break-all; overflow-wrap: anywhere;">-</span></div>
           <div><strong>Protocol:</strong> <span id="meta-scheme" style="font-family: var(--font-mono); color: var(--text-primary);">-</span></div>
-          <div><strong>IP Address:</strong> <span id="meta-ip" style="font-family: var(--font-mono); color: var(--text-primary);">-</span></div>
+          <div><strong>IP Address:</strong> <span id="meta-ip" style="font-family: var(--font-mono); color: var(--text-primary); word-break: break-all; overflow-wrap: anywhere;">-</span></div>
         </div>
       </div>
 
@@ -147,11 +147,11 @@
         </div>
 
         <!-- Right: Multi-Hop Redirect Trace -->
-        <div style="border-left: 1px solid var(--border-subtle); padding-left: 1.5rem;">
+        <div class="result-trace-col">
           <h2 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.85rem;">
             Redirect Trace Hops
           </h2>
-          <div id="redirect-hops-container">
+          <div id="redirect-hops-container" style="min-width: 0; max-width: 100%;">
             <div style="font-size: 0.82rem; color: var(--text-muted);">Direct connection (0 intermediate hops).</div>
           </div>
 
@@ -295,6 +295,8 @@
           item.style.padding = '0.55rem 0.85rem';
           item.style.borderRadius = 'var(--radius-sm)';
           item.style.fontSize = '0.84rem';
+          item.style.wordBreak = 'break-word';
+          item.style.overflowWrap = 'anywhere';
           item.style.background = status === 'DANGEROUS' ? 'var(--risk-dangerous-bg)' : 'var(--risk-suspicious-bg)';
           item.style.border = `1px solid ${status === 'DANGEROUS' ? 'var(--risk-dangerous-border)' : 'var(--risk-suspicious-border)'}`;
           item.style.color = status === 'DANGEROUS' ? 'var(--risk-dangerous-text)' : 'var(--risk-suspicious-text)';
@@ -322,7 +324,8 @@
           const hopUrl = typeof hop === 'string' ? hop : (hop.url || JSON.stringify(hop));
           const hopCard = document.createElement('div');
           hopCard.className = 'redirect-step-card';
-          hopCard.innerHTML = `<span class="redirect-step-badge">HOP ${idx + 1}</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(hopUrl)}</span>`;
+          hopCard.title = hopUrl;
+          hopCard.innerHTML = `<span class="redirect-step-badge">HOP ${idx + 1}</span><span class="redirect-step-url">${escapeHtml(hopUrl)}</span>`;
           redContainer.appendChild(hopCard);
         });
       }
