@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In — FORESIGHT</title>
-  <link rel="stylesheet" href="/static/css/styles.css?v=20260929_editorial">
+  <link rel="stylesheet" href="/static/css/styles.css?v=20261029_about">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -94,10 +94,141 @@
     </main>
   </div>
 
+  <!-- Top Right "About" Information Icon Button -->
+  <button type="button" id="btn-about" class="about-icon-btn" onclick="openAboutModal()" aria-label="About" title="About">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+
+  <!-- About Modal Panel -->
+  <div class="modal-overlay" id="about-modal" role="dialog" aria-modal="true" aria-labelledby="about-modal-title" onclick="handleAboutOverlayClick(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="max-width: 680px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0.85rem; margin-bottom: 1.25rem;">
+        <h2 id="about-modal-title" style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0;">About</h2>
+        <button type="button" class="modal-close-btn" onclick="closeAboutModal()" aria-label="Close" style="background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); padding: 0.2rem 0.4rem; line-height: 1;">&times;</button>
+      </div>
+
+      <!-- Problem Statement -->
+      <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top: 0.5rem; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em;">Problem Statement</h3>
+      <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.25rem;">
+        QR codes make it easy to access websites and services, but users cannot easily tell where a QR code will take them before scanning it. This creates a risk of landing on fake websites, phishing pages, or fraudulent links.
+      </p>
+
+      <!-- Proposed Solution -->
+      <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top: 1.25rem; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em;">Proposed Solution</h3>
+      <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1.25rem;">
+        FORESIGHT is a web-based security system that analyzes QR code destinations, traces redirects, and identifies potential security risks. It generates a risk score and provides clear explanations of detected threats, helping users make informed decisions before accessing a link.
+      </p>
+
+      <!-- Objectives -->
+      <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top: 1.25rem; margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.04em;">Objectives</h3>
+      <ol style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6; margin-left: 1.25rem; margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.65rem;">
+        <li>To develop a web-based system that scans QR codes and extracts their destination URLs for security analysis.</li>
+        <li>To assess QR code destinations by analyzing URL patterns, redirects, and suspicious indicators, and generate an understandable risk score with supporting reasons.</li>
+        <li>To provide users with clear security warnings and scan history, helping them make informed decisions before accessing potentially unsafe links.</li>
+      </ol>
+
+      <!-- System Architecture -->
+      <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top: 1.25rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em;">System Architecture</h3>
+      <div class="about-arch-flow">
+        <div class="about-arch-box">
+          <div class="about-arch-title">User Input</div>
+          <div class="about-arch-desc">Scan QR Code / Upload Image</div>
+        </div>
+        <div class="about-arch-arrow">&darr;</div>
+
+        <div class="about-arch-box">
+          <div class="about-arch-title">Frontend</div>
+          <div class="about-arch-desc">HTML, CSS, JavaScript</div>
+        </div>
+        <div class="about-arch-arrow">&darr;</div>
+
+        <div class="about-arch-box">
+          <div class="about-arch-title">Backend API</div>
+          <div class="about-arch-desc">Python, FastAPI</div>
+        </div>
+        <div class="about-arch-arrow">&darr;</div>
+
+        <div class="about-arch-box">
+          <div class="about-arch-title">QR Code Decoding</div>
+          <div class="about-arch-desc">OpenCV, zxing-cpp</div>
+        </div>
+        <div class="about-arch-arrow">&darr;</div>
+
+        <div class="about-arch-box">
+          <div class="about-arch-title">URL Analysis</div>
+          <div class="about-arch-desc">Heuristics, Redirect Tracing</div>
+        </div>
+        <div class="about-arch-arrow">&darr;</div>
+
+        <div class="about-arch-box">
+          <div class="about-arch-title">Risk Assessment Engine</div>
+          <div class="about-arch-desc">Risk Score, Classification, Warning Reasons</div>
+        </div>
+        <div class="about-arch-arrow">&darr;</div>
+
+        <div class="about-arch-box">
+          <div class="about-arch-title">Results &amp; Database</div>
+          <div class="about-arch-desc">Risk Report, Scan History, Reporting</div>
+        </div>
+      </div>
+
+      <!-- USP — Unique Selling Proposition -->
+      <h3 style="font-size: 0.92rem; font-weight: 700; color: var(--text-primary); margin-top: 1.25rem; margin-bottom: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em;">USP — Unique Selling Proposition</h3>
+      <div style="display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 0.5rem;">
+        <div style="background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.85rem 1rem;">
+          <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.25rem;">1. Destination Analysis</div>
+          <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">Reveals QR destinations and traces redirects.</div>
+        </div>
+        <div style="background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.85rem 1rem;">
+          <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.25rem;">2. Explainable Risk Scoring</div>
+          <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">Identifies suspicious indicators and provides clear risk assessments.</div>
+        </div>
+        <div style="background: var(--bg-surface-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 0.85rem 1rem;">
+          <div style="font-weight: 700; font-size: 0.88rem; color: var(--text-primary); margin-bottom: 0.25rem;">3. Automated Threat Reporting</div>
+          <div style="font-size: 0.84rem; color: var(--text-secondary); line-height: 1.5;">Flags QR destinations receiving 100+ accesses within 24 hours for potential reporting to cyber authorities.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     if (typeof redirectIfLoggedIn === 'function') {
       redirectIfLoggedIn();
     }
+
+    function openAboutModal() {
+      const modal = document.getElementById('about-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        const closeBtn = modal.querySelector('.modal-close-btn');
+        if (closeBtn) closeBtn.focus();
+      }
+    }
+
+    function closeAboutModal() {
+      const modal = document.getElementById('about-modal');
+      if (modal && modal.style.display === 'flex') {
+        modal.style.display = 'none';
+        const btn = document.getElementById('btn-about');
+        if (btn) btn.focus();
+      }
+    }
+
+    function handleAboutOverlayClick(e) {
+      if (e.target.id === 'about-modal') {
+        closeAboutModal();
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        closeAboutModal();
+      }
+    });
 
     function togglePasswordVisibility(id) {
       const input = document.getElementById(id);

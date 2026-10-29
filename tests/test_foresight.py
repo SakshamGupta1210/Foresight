@@ -484,6 +484,21 @@ class TestEndpointsAndStaticFiles(unittest.TestCase):
         r5 = self.client.post("/api/auth/change-password", json={"current_password": "a", "new_password": "b"})
         self.assertEqual(r5.status_code, 401)
 
+    def test_login_page_about_modal(self):
+        resp = self.client.get("/login")
+        self.assertEqual(resp.status_code, 200)
+        html = resp.text
+        self.assertIn('id="btn-about"', html)
+        self.assertIn('aria-label="About"', html)
+        self.assertIn('title="About"', html)
+        self.assertIn('id="about-modal"', html)
+        self.assertIn('>About</h2>', html)
+        self.assertIn("Problem Statement", html)
+        self.assertIn("Proposed Solution", html)
+        self.assertIn("Objectives", html)
+        self.assertIn("System Architecture", html)
+        self.assertIn("USP — Unique Selling Proposition", html)
+
 
 class TestScanImageAPI(unittest.TestCase):
 

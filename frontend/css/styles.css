@@ -972,6 +972,81 @@ body {
 }
 
 /* =====================================================================
+   ABOUT MODAL & ICON
+===================================================================== */
+.about-icon-btn {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.5rem;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+
+.about-icon-btn:hover,
+.about-icon-btn:focus-visible {
+  background: var(--bg-surface-subtle);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  outline: none;
+}
+
+.about-arch-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 1rem 0 1.5rem 0;
+}
+
+.about-arch-box {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 1rem;
+  text-align: center;
+}
+
+.about-arch-title {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  margin-bottom: 0.15rem;
+}
+
+.about-arch-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.about-arch-arrow {
+  color: var(--accent-green);
+  font-weight: 700;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+@media (max-width: 600px) {
+  .about-icon-btn {
+    top: 1rem;
+    right: 1rem;
+  }
+}
+
+/* =====================================================================
    RESPONSIVE DESIGN
 ===================================================================== */
 @media (max-width: 900px) {
